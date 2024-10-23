@@ -8,12 +8,13 @@ module.exports.postQuery = async (req, res, next) => {
     const id = uuidv4();
 
     const sqlInsert =
-      "INSERT INTO query (id,name,phone, email, message) VALUES (?, ?, ?, ?,?)";
+      "INSERT INTO query (id,name,phone, email,subject, message) VALUES (?, ?, ?, ?,?,?)";
     await queryPromise(sqlInsert, [
       id,
       validatedBody.name,
       validatedBody.phone,
       validatedBody.email,
+      validatedBody.subject,
       validatedBody.message,
     ]);
 
