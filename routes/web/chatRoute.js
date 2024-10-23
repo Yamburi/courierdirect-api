@@ -1,0 +1,21 @@
+const { Router } = require("express");
+const chatController = require("../../controller/web/chatController");
+const { chatUpload } = require("../../middleware/fileUpload");
+
+const router = Router();
+
+router.post("/api/web/chat", chatController.createChat);
+router.post(
+  "/api/web/chat-reply/:userId/:id",
+
+  chatUpload.fields([{ name: "image", maxCount: 10 }]),
+  chatController.replyToChat
+);
+
+router.get(
+  "/api/web/chat/:userId/:id",
+
+  chatController.getChatDetails
+);
+
+module.exports = router;

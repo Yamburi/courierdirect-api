@@ -31,10 +31,15 @@ const serviceUpload = multer({
   storage: storage(path.join(__dirname, "../uploads/service")),
   // limits: { fileSize: 1200000 },
 });
+const chatUpload = multer({
+  storage: storage(path.join(__dirname, "../uploads/chat")),
+  // limits: { fileSize: 1200000 },
+});
 
 module.exports = {
   sliderUpload,
   whyUsUpload,
   testimonialUpload,
   serviceUpload,
+  chatUpload,
 };
