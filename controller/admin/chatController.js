@@ -8,36 +8,48 @@ module.exports.getAllChats = async (req, res, next) => {
     let { page = 1, limit = 100000, startDate, endDate } = req.query;
     const offset = (page - 1) * limit;
     let sqlSelect = `
-      SELECT * FROM chat
+      SELECT 
+        chat.*, 
+        COUNT(CASE WHEN chat_message.seen_by_admin = 0 THEN 1 END) AS unseen_count, 
+        (SELECT message FROM chat_message WHERE chat_id = chat.id ORDER BY created_at DESC LIMIT 1) AS last_message
+      FROM chat
+      LEFT JOIN chat_message ON chat_message.chat_id = chat.id
     `;
+
     const conditions = [];
     let whereClause = "";
 
     if (startDate !== undefined && endDate !== undefined) {
-      conditions.push(`created_at BETWEEN '${startDate}' AND '${endDate}'`);
+      conditions.push(
+        `chat.created_at BETWEEN '${startDate}' AND '${endDate}'`
+      );
     } else if (startDate !== undefined) {
-      conditions.push(`created_at >= '${startDate}'`);
+      conditions.push(`chat.created_at >= '${startDate}'`);
     }
+
     if (conditions.length > 0) {
       whereClause = ` WHERE ${conditions.join(" AND ")}`;
       sqlSelect += whereClause;
     }
+
     sqlSelect += `
-    ORDER BY created_at DESC LIMIT ? OFFSET ?
-  `;
+      GROUP BY chat.id
+      ORDER BY chat.created_at DESC 
+      LIMIT ? OFFSET ?
+    `;
+
     const data = await queryPromise(sqlSelect, [
       parseInt(limit),
       parseInt(offset),
     ]);
 
     const countQuery = `
-    SELECT COUNT(*) AS total
-    FROM chat
-    ${whereClause}
-  `;
+      SELECT COUNT(*) AS total
+      FROM chat
+      ${whereClause}
+    `;
 
     const totalChats = await queryPromise(countQuery);
-
     const pageCount = Math.ceil(totalChats[0].total / limit);
 
     res.status(200).json({
@@ -72,6 +84,13 @@ module.exports.getChatDetails = async (req, res, next) => {
       WHERE chat_id = ? ORDER BY created_at DESC
     `;
     const messages = await queryPromise(sqlSelectMessages, [chatId]);
+
+    await queryPromise(
+      `
+      UPDATE chat_message SET seen_by_admin = 1 WHERE chat_id = ? AND seen_by_admin = 0
+    `,
+      [chatId]
+    );
 
     const formattedData = await Promise.all(
       messages?.map(async (msg) => {
@@ -115,8 +134,8 @@ module.exports.replyToChat = async (req, res, next) => {
     const messageId = uuidv4();
 
     const sqlInsertMessage = `
-      INSERT INTO chat_message (id, chat_id, admin_id,  message)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO chat_message (id, chat_id, admin_id,  message, seen_by_user, seen_by_admin)
+      VALUES (?, ?, ?, ?,0,1)
     `;
     await queryPromise(sqlInsertMessage, [
       messageId,

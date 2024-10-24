@@ -22,8 +22,8 @@ module.exports.createChat = async (req, res, next) => {
     ]);
     const messageId = uuidv4();
     const sqlInsertMessage = `
-      INSERT INTO chat_message (id,chat_id, user_id, message)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO chat_message (id,chat_id, user_id, message, seen_by_user, seen_by_admin)
+      VALUES (?, ?, ?, ?,1,0)
     `;
     await queryPromise(sqlInsertMessage, [
       messageId,
@@ -37,8 +37,8 @@ module.exports.createChat = async (req, res, next) => {
     const adminReplyMessage =
       "Thank you for reaching out. We will get back to you shortly.";
     const sqlInsertAdminReply = `
-      INSERT INTO chat_message (id, chat_id, admin_id, message)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO chat_message (id, chat_id, admin_id, message, seen_by_user, seen_by_admin)
+      VALUES (?, ?, ?, ?,1,1)
     `;
     await queryPromise(sqlInsertAdminReply, [
       adminReplyId,
@@ -96,8 +96,8 @@ module.exports.replyToChat = async (req, res, next) => {
     }
     const messageId = uuidv4();
     const sqlInsertMessage = `
-      INSERT INTO chat_message (id,chat_id, user_id,  message)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO chat_message (id,chat_id, user_id,  message, seen_by_user, seen_by_admin)
+      VALUES (?, ?, ?, ?,1,0)
     `;
     await queryPromise(sqlInsertMessage, [
       messageId,
@@ -166,23 +166,29 @@ module.exports.replyToChat = async (req, res, next) => {
 
 module.exports.getChatDetails = async (req, res, next) => {
   try {
-    const chatId = req.params.id;
-    const userId = req.params.userId;
+    const userId = req.params.id;
 
     const chatCheck = await queryPromise(
-      "SELECT * FROM chat WHERE id = ? AND user_id = ?",
-      [chatId, userId]
+      "SELECT * FROM chat WHERE user_id = ?",
+      [userId]
     );
     if (chatCheck.length === 0) {
       return next(new BadRequestError("Chat Not found"));
     }
-
+    const chatId = chatCheck[0].id;
     const sqlSelectMessages = `
         SELECT *
         FROM chat_message
         WHERE chat_id = ?
       `;
     const data = await queryPromise(sqlSelectMessages, [chatId]);
+
+    await queryPromise(
+      `
+      UPDATE chat_message SET seen_by_user = 1 WHERE chat_id = ? AND seen_by_user = 0
+    `,
+      [chatId]
+    );
 
     const formattedData = await Promise.all(
       data?.map(async (plan) => {
@@ -203,6 +209,34 @@ module.exports.getChatDetails = async (req, res, next) => {
       message: "Chat Details Fetched Successfully",
       success: true,
       data: formattedData,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports.getUnseenCount = async (req, res, next) => {
+  try {
+    const userId = req.params.id;
+
+    const chatCheck = await queryPromise(
+      "SELECT * FROM chat WHERE user_id = ?",
+      [userId]
+    );
+    if (chatCheck.length === 0) {
+      return next(new BadRequestError("Chat Not found"));
+    }
+    const chatId = chatCheck[0].id;
+
+    const sqlSelectMessages = `SELECT COUNT(*) AS unseen_count FROM chat_message WHERE chat_id = ? AND seen_by_user = 0`;
+    const data = await queryPromise(sqlSelectMessages, [chatId]);
+
+    res.status(200).json({
+      message: "Data Fetched Successfully",
+      success: true,
+      data: {
+        count: data[0].unseen_count || 0,
+      },
     });
   } catch (error) {
     next(error);

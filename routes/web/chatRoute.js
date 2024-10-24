@@ -13,9 +13,14 @@ router.post(
 );
 
 router.get(
-  "/api/web/chat/:userId/:id",
+  "/api/web/chat/:id",
 
   chatController.getChatDetails
+);
+router.get(
+  "/api/web/chat/unseen/:id",
+
+  chatController.getUnseenCount
 );
 
 module.exports = router;
