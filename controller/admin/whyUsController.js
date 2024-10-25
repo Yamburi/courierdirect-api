@@ -34,9 +34,7 @@ module.exports.postWhyUs = async (req, res, next) => {
     // if (req.admin.role !== "Admin") {
     //   return next(new AuthorizationError("Forbidden: Access is denied"));
     // }
-    console.log(req.body);
     const validatedBody = postWhyUsSchema.parse(req.body);
-    console.log(validatedBody);
 
     const id = uuidv4();
     const file = req?.file?.filename;

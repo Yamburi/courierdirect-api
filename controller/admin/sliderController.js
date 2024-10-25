@@ -104,7 +104,6 @@ module.exports.editSlider = async (req, res, next) => {
       data: updatedData[0],
     });
   } catch (error) {
-    console.log(error);
     if (uploadedFile) {
       try {
         await fs.unlink(`./uploads/slider/${uploadedFile}`);

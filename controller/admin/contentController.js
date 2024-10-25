@@ -33,8 +33,15 @@ module.exports.editContent = async (req, res, next) => {
     );
     if (existingData.length === 0) throw new NotFoundError("Data Not Found");
 
-    const sqlUpdate = "UPDATE content SET aim=?,about=? WHERE id = ?";
-    await queryPromise(sqlUpdate, [validatedBody.aim, validatedBody.about, id]);
+    const sqlUpdate =
+      "UPDATE content SET aim=?,about=?,privacy=?,toc=? WHERE id = ?";
+    await queryPromise(sqlUpdate, [
+      validatedBody.aim,
+      validatedBody.about,
+      validatedBody.privacy,
+      validatedBody.toc,
+      id,
+    ]);
 
     const updatedData = await queryPromise(
       "SELECT * FROM content WHERE id = ?",
@@ -46,7 +53,6 @@ module.exports.editContent = async (req, res, next) => {
       data: updatedData[0],
     });
   } catch (error) {
-    console.log(error);
     next(error);
   }
 };
