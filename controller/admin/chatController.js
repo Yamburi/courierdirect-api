@@ -11,7 +11,8 @@ module.exports.getAllChats = async (req, res, next) => {
       SELECT 
         chat.*, 
         COUNT(CASE WHEN chat_message.seen_by_admin = 0 THEN 1 END) AS unseen_count, 
-        (SELECT message FROM chat_message WHERE chat_id = chat.id ORDER BY created_at DESC LIMIT 1) AS last_message
+        (SELECT message FROM chat_message WHERE chat_id = chat.id ORDER BY created_at DESC LIMIT 1) AS last_message,
+        (SELECT created_at FROM chat_message WHERE chat_id = chat.id ORDER BY created_at DESC LIMIT 1) AS last_message_date,
       FROM chat
       LEFT JOIN chat_message ON chat_message.chat_id = chat.id
     `;

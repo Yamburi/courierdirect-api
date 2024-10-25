@@ -92,7 +92,11 @@ module.exports.replyToChat = async (req, res, next) => {
       [chatId, userId]
     );
     if (chatCheck.length === 0) {
-      return next(new BadRequestError("Chat Not Found"));
+      return res.status(200).json({
+        message: "Chat Details Fetched Successfully",
+        success: true,
+        data: [],
+      });
     }
     const messageId = uuidv4();
     const sqlInsertMessage = `
@@ -173,7 +177,11 @@ module.exports.getChatDetails = async (req, res, next) => {
       [userId]
     );
     if (chatCheck.length === 0) {
-      return next(new BadRequestError("Chat Not found"));
+      return res.status(200).json({
+        message: "Chat Details Fetched Successfully",
+        success: true,
+        data: [],
+      });
     }
     const chatId = chatCheck[0].id;
     const sqlSelectMessages = `
@@ -224,7 +232,11 @@ module.exports.getUnseenCount = async (req, res, next) => {
       [userId]
     );
     if (chatCheck.length === 0) {
-      return next(new BadRequestError("Chat Not found"));
+      return res.status(200).json({
+        message: "Chat Details Fetched Successfully",
+        success: true,
+        data: [],
+      });
     }
     const chatId = chatCheck[0].id;
 
