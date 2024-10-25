@@ -187,7 +187,7 @@ module.exports.getChatDetails = async (req, res, next) => {
     const sqlSelectMessages = `
         SELECT *
         FROM chat_message
-        WHERE chat_id = ?
+        WHERE chat_id = ? ORDER BY created_at DESC
       `;
     const data = await queryPromise(sqlSelectMessages, [chatId]);
 
