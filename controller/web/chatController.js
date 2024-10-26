@@ -10,6 +10,7 @@ module.exports.createChat = async (req, res, next) => {
     const validatedBody = postChatSchema.parse(req.body);
     const chatId = generateUniqueOrderId();
 
+    // Insert chat details for the user
     const sqlInsertChat = `
       INSERT INTO chat (id, user_id, name, phone, email)
       VALUES (?, ?, ?, ?, ?)
@@ -22,6 +23,7 @@ module.exports.createChat = async (req, res, next) => {
       validatedBody.email,
     ]);
 
+    // Insert user's initial message
     const messageId = uuidv4();
     const sqlInsertMessage = `
       INSERT INTO chat_message (id, chat_id, user_id, message, seen_by_user, seen_by_admin)
@@ -34,10 +36,12 @@ module.exports.createChat = async (req, res, next) => {
       validatedBody.message,
     ]);
 
+    // Only proceed with the admin reply once the user's message has been successfully inserted
     const admin = await queryPromise(`SELECT * FROM admin`);
     const adminReplyId = uuidv4();
     const adminReplyMessage =
       "Thank you for reaching out. We will get back to you shortly.";
+
     const sqlInsertAdminReply = `
       INSERT INTO chat_message (id, chat_id, admin_id, message, seen_by_user, seen_by_admin)
       VALUES (?, ?, ?, ?, 1, 0)
@@ -49,17 +53,31 @@ module.exports.createChat = async (req, res, next) => {
       adminReplyMessage,
     ]);
 
+    // Fetch all messages including the admin reply for the response
     const sqlSelectMessages = `
       SELECT *
       FROM chat_message
-      WHERE chat_id = ? AND id = ? ORDER BY created_at DESC
+      WHERE chat_id = ? ORDER BY created_at DESC
     `;
-    const data = await queryPromise(sqlSelectMessages, [chatId, messageId]);
+    const data = await queryPromise(sqlSelectMessages, [chatId]);
 
+    // Format data by adding image list to each message
+    const formattedData = await Promise.all(
+      data?.map(async (message) => {
+        const imageQuery = `
+          SELECT * FROM chat_message_image
+          WHERE chat_message_id = ?
+        `;
+        const imageLists = await queryPromise(imageQuery, [message.id]);
+        return { ...message, images: imageLists };
+      })
+    );
+
+    // Respond with all chat data, including admin reply
     res.status(201).json({
       message: "Chat Created Successfully",
       success: true,
-      data: { ...data[0], images: [] },
+      data: formattedData,
     });
   } catch (error) {
     next(error);
