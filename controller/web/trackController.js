@@ -6,8 +6,8 @@ module.exports.postTrack = async (req, res, next) => {
     const response = await axios.post(
       "https://support.couriermate.co.za/json_api/",
       {
-        username: "test_api",
-        password: "H5jKmNBqSD43C8P8922AJGg",
+        username: process.env.CDUSER,
+        password: process.env.CDPASSWORD,
         method: "get_tracking_events",
         delivery_no: validatedBody.trackNo,
       }
