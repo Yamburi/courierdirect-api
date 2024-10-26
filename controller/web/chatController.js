@@ -35,7 +35,7 @@ module.exports.createChat = async (req, res, next) => {
       validatedBody.user_id,
       validatedBody.message,
     ]);
-
+    await delay(1000);
     // Only proceed with the admin reply once the user's message has been successfully inserted
     const admin = await queryPromise(`SELECT * FROM admin`);
     const adminReplyId = uuidv4();
