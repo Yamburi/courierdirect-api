@@ -4,7 +4,7 @@ const { BadRequestError } = require("../../helper/errors");
 const { postChatSchema, replyChatSchema } = require("../../schema/chatSchema");
 const { generateUniqueOrderId } = require("../../helper/helpers");
 const fs = require("fs").promises;
-
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 module.exports.createChat = async (req, res, next) => {
   try {
     const validatedBody = postChatSchema.parse(req.body);
