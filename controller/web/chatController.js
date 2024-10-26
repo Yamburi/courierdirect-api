@@ -9,9 +9,10 @@ module.exports.createChat = async (req, res, next) => {
   try {
     const validatedBody = postChatSchema.parse(req.body);
     const chatId = generateUniqueOrderId();
+
     const sqlInsertChat = `
-      INSERT INTO chat (id, user_id, name,phone, email)
-      VALUES (?, ?, ?, ?,?)
+      INSERT INTO chat (id, user_id, name, phone, email)
+      VALUES (?, ?, ?, ?, ?)
     `;
     await queryPromise(sqlInsertChat, [
       chatId,
@@ -20,10 +21,11 @@ module.exports.createChat = async (req, res, next) => {
       validatedBody.phone,
       validatedBody.email,
     ]);
+
     const messageId = uuidv4();
     const sqlInsertMessage = `
-      INSERT INTO chat_message (id,chat_id, user_id, message, seen_by_user, seen_by_admin)
-      VALUES (?, ?, ?, ?,1,0)
+      INSERT INTO chat_message (id, chat_id, user_id, message, seen_by_user, seen_by_admin)
+      VALUES (?, ?, ?, ?, 1, 0)
     `;
     await queryPromise(sqlInsertMessage, [
       messageId,
@@ -38,7 +40,7 @@ module.exports.createChat = async (req, res, next) => {
       "Thank you for reaching out. We will get back to you shortly.";
     const sqlInsertAdminReply = `
       INSERT INTO chat_message (id, chat_id, admin_id, message, seen_by_user, seen_by_admin)
-      VALUES (?, ?, ?, ?,1,1)
+      VALUES (?, ?, ?, ?, 1, 0)
     `;
     await queryPromise(sqlInsertAdminReply, [
       adminReplyId,
@@ -48,30 +50,16 @@ module.exports.createChat = async (req, res, next) => {
     ]);
 
     const sqlSelectMessages = `
-    SELECT *
-    FROM chat_message
-    WHERE chat_id = ? AND id=?
-  `;
+      SELECT *
+      FROM chat_message
+      WHERE chat_id = ? AND id = ? ORDER BY created_at DESC
+    `;
     const data = await queryPromise(sqlSelectMessages, [chatId, messageId]);
 
-    const formattedData = await Promise.all(
-      data?.map(async (plan) => {
-        const lists = `
-        SELECT * FROM chat_message_image
-        WHERE chat_message_id = ?
-      `;
-        const imageLists = await queryPromise(lists, [plan.id]);
-
-        return {
-          ...plan,
-          images: imageLists,
-        };
-      })
-    );
     res.status(201).json({
       message: "Chat Created Successfully",
       success: true,
-      data: formattedData[0],
+      data: { ...data[0], images: [] },
     });
   } catch (error) {
     next(error);
@@ -130,7 +118,7 @@ module.exports.replyToChat = async (req, res, next) => {
     const sqlSelectMessages = `
     SELECT *
     FROM chat_message
-    WHERE chat_id = ? AND id=?
+    WHERE chat_id = ? AND id=? 
   `;
     const data = await queryPromise(sqlSelectMessages, [chatId, messageId]);
 

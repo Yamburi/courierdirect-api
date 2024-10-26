@@ -12,7 +12,17 @@ router.post(
   chatController.replyToChat
 );
 router.get("/api/chat", adminValidateToken, chatController.getAllChats);
+router.get(
+  "/api/chat/count/unseen",
+  adminValidateToken,
+  chatController.getUnseenCount
+);
 router.get("/api/chat/:id", adminValidateToken, chatController.getChatDetails);
+router.get(
+  "/api/chat/user/:id",
+  adminValidateToken,
+  chatController.getChatById
+);
 router.delete("/api/chat/:id", adminValidateToken, chatController.deleteChat);
 
 module.exports = router;

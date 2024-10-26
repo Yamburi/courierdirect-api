@@ -66,6 +66,30 @@ module.exports.getAllChats = async (req, res, next) => {
   }
 };
 
+module.exports.getChatById = async (req, res, next) => {
+  try {
+    const chatId = req.params.id;
+
+    const sqlSelectChat = `
+      SELECT * FROM chat
+      WHERE id = ?
+    `;
+    const chat = await queryPromise(sqlSelectChat, [chatId]);
+
+    if (chat.length === 0) {
+      return next(new BadRequestError("Chat Not Found"));
+    }
+
+    res.status(200).json({
+      message: "Chat Details Fetched Successfully",
+      success: true,
+      data: chat[0],
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports.getChatDetails = async (req, res, next) => {
   try {
     const chatId = req.params.id;
@@ -251,6 +275,27 @@ module.exports.deleteChat = async (req, res, next) => {
     res.status(200).json({
       message: "Chat and Associated Data Deleted Successfully",
       success: true,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports.getUnseenCount = async (req, res, next) => {
+  try {
+    const sqlUnseenCount = `
+      SELECT COUNT(DISTINCT chat_id) AS count
+      FROM chat_message
+      WHERE seen_by_admin = 0
+    `;
+
+    const result = await queryPromise(sqlUnseenCount);
+    const count = result[0].count;
+
+    res.status(200).json({
+      message: "Unseen chat count fetched successfully",
+      success: true,
+      data: { count },
     });
   } catch (error) {
     next(error);
