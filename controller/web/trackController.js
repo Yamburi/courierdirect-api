@@ -1,10 +1,11 @@
 const { postTrackSchema } = require("../../schema/trackSchema");
+const axios = require("axios");
 module.exports.postTrack = async (req, res, next) => {
   try {
     const validatedBody = postTrackSchema.parse(req.body);
 
     const response = await axios.post(
-      "https://support.couriermate.co.za/json_api/",
+      "https://courierdirect.couriermate.co.za/api/json",
       {
         username: process.env.CDUSER,
         password: process.env.CDPASSWORD,
