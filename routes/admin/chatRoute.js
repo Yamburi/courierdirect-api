@@ -19,6 +19,11 @@ router.get(
 );
 router.get("/api/chat/:id", adminValidateToken, chatController.getChatDetails);
 router.get(
+  "/api/chat/new-message/:id",
+  adminValidateToken,
+  chatController.getNewMessages
+);
+router.get(
   "/api/chat/user/:id",
   adminValidateToken,
   chatController.getChatById

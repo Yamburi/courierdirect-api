@@ -17,6 +17,8 @@ router.get(
 
   chatController.getChatDetails
 );
+
+router.get("/api/web/chat/new-message/:id", chatController.getNewMessages);
 router.get(
   "/api/web/chat/unseen/:id",
 

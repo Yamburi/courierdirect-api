@@ -229,6 +229,56 @@ module.exports.getChatDetails = async (req, res, next) => {
   }
 };
 
+module.exports.getNewMessages = async (req, res, next) => {
+  const chatId = req.params.id;
+  const pollInterval = 5000;
+  const maxPollAttempts = 10;
+  let attempts = 0;
+
+  try {
+    const pollForNewMessages = async () => {
+      const sqlSelectNewMessages = `
+        SELECT * FROM chat_message
+        WHERE chat_id = ? AND seen_by_user = 0
+        ORDER BY created_at DESC
+      `;
+      const newMessages = await queryPromise(sqlSelectNewMessages, [chatId]);
+      await queryPromise(
+        `
+        UPDATE chat_message SET seen_by_user = 1 WHERE chat_id = ? AND seen_by_user = 0
+      `,
+        [chatId]
+      );
+      if (newMessages.length > 0) {
+        const formattedMessages = await Promise.all(
+          newMessages.map(async (msg) => {
+            const imageQuery = `SELECT * FROM chat_message_image WHERE chat_message_id = ?`;
+            const images = await queryPromise(imageQuery, [msg.id]);
+            return { ...msg, images };
+          })
+        );
+
+        res.status(200).json({
+          success: true,
+          message: "New messages found",
+          data: formattedMessages,
+        });
+      } else if (attempts < maxPollAttempts) {
+        attempts++;
+        setTimeout(pollForNewMessages, pollInterval);
+      } else {
+        res
+          .status(204)
+          .json({ success: true, message: "No new messages", data: [] });
+      }
+    };
+
+    await pollForNewMessages();
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports.getUnseenCount = async (req, res, next) => {
   try {
     const userId = req.params.id;
