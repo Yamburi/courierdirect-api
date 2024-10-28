@@ -230,7 +230,19 @@ module.exports.getChatDetails = async (req, res, next) => {
 };
 
 module.exports.getNewMessages = async (req, res, next) => {
-  const chatId = req.params.id;
+  const userId = req.params.id;
+
+  const chatCheck = await queryPromise("SELECT * FROM chat WHERE user_id = ?", [
+    userId,
+  ]);
+  if (chatCheck.length === 0) {
+    return res.status(200).json({
+      message: "Chat Details Fetched Successfully",
+      success: true,
+      data: [],
+    });
+  }
+  const chatId = chatCheck[0].id;
   const pollInterval = 5000;
   const maxPollAttempts = 10;
   let attempts = 0;
