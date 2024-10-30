@@ -322,3 +322,54 @@ module.exports.getUnseenCount = async (req, res, next) => {
     next(error);
   }
 };
+
+module.exports.getNewUnseenCount = async (req, res, next) => {
+  const userId = req.params.id;
+
+  try {
+    const chatCheck = await queryPromise(
+      "SELECT * FROM chat WHERE user_id = ?",
+      [userId]
+    );
+
+    if (chatCheck.length > 0) {
+      const chatId = chatCheck[0].id;
+      const pollInterval = 5000;
+      const maxPollAttempts = 10;
+      let attempts = 0;
+
+      const pollForNewUnseenCount = async () => {
+        const sqlSelectMessages = `SELECT COUNT(*) AS unseen_count FROM chat_message WHERE chat_id = ? AND seen_by_user = 0`;
+        const data = await queryPromise(sqlSelectMessages, [chatId]);
+
+        if (data[0].unseen_count > 0) {
+          res.status(200).json({
+            message: "Data Fetched Successfully",
+            success: true,
+            data: {
+              count: data[0].unseen_count,
+            },
+          });
+        } else if (attempts < maxPollAttempts) {
+          attempts++;
+          setTimeout(pollForNewUnseenCount, pollInterval);
+        } else {
+          res.status(204).json({
+            success: true,
+            message: "No new messages",
+            data: [],
+          });
+        }
+      };
+
+      await pollForNewUnseenCount();
+    } else {
+      // res.status(404).json({
+      //   success: false,
+      //   message: "Chat not found for user",
+      // });
+    }
+  } catch (error) {
+    next(error);
+  }
+};

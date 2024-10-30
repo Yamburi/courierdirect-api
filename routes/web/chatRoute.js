@@ -25,4 +25,10 @@ router.get(
   chatController.getUnseenCount
 );
 
+router.get(
+  "/api/web/chat/new-unseen/:id",
+
+  chatController.getNewUnseenCount
+);
+
 module.exports = router;

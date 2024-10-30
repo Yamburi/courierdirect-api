@@ -66,6 +66,91 @@ module.exports.getAllChats = async (req, res, next) => {
   }
 };
 
+module.exports.getNewAllChats = async (req, res, next) => {
+  const pollInterval = 5000;
+  const maxPollAttempts = 10;
+  let attempts = 0;
+
+  try {
+    const pollForNewChats = async () => {
+      let { page = 1, limit = 100000, startDate, endDate } = req.query;
+      const offset = (page - 1) * limit;
+
+      let sqlSelect = `
+        SELECT 
+          chat.*, 
+          COUNT(CASE WHEN chat_message.seen_by_admin = 0 THEN 1 END) AS unseen_count, 
+          (SELECT message FROM chat_message WHERE chat_id = chat.id ORDER BY created_at DESC LIMIT 1) AS last_message,
+          (SELECT created_at FROM chat_message WHERE chat_id = chat.id ORDER BY created_at DESC LIMIT 1) AS last_message_date
+        FROM chat
+        LEFT JOIN chat_message ON chat_message.chat_id = chat.id
+      `;
+
+      const conditions = [];
+      let whereClause = "";
+
+      if (startDate !== undefined && endDate !== undefined) {
+        conditions.push(
+          `chat.created_at BETWEEN '${startDate}' AND '${endDate}'`
+        );
+      } else if (startDate !== undefined) {
+        conditions.push(`chat.created_at >= '${startDate}'`);
+      }
+
+      if (conditions.length > 0) {
+        whereClause = ` WHERE ${conditions.join(" AND ")}`;
+        sqlSelect += whereClause;
+      }
+
+      sqlSelect += `
+        GROUP BY chat.id
+        ORDER BY chat.created_at DESC 
+        LIMIT ? OFFSET ?
+      `;
+
+      const data = await queryPromise(sqlSelect, [
+        parseInt(limit),
+        parseInt(offset),
+      ]);
+
+      const unseenChats = data.filter((chat) => chat.unseen_count > 0);
+
+      if (unseenChats.length > 0) {
+        const countQuery = `
+          SELECT COUNT(*) AS total
+          FROM chat
+          ${whereClause}
+        `;
+
+        const totalChats = await queryPromise(countQuery);
+        const pageCount = Math.ceil(totalChats[0].total / limit);
+
+        res.status(200).json({
+          message: "Data Fetched Successfully",
+          success: true,
+          data: {
+            items: unseenChats,
+            pageCount: pageCount,
+          },
+        });
+      } else if (attempts < maxPollAttempts) {
+        attempts++;
+        setTimeout(pollForNewChats, pollInterval);
+      } else {
+        res.status(204).json({
+          success: true,
+          message: "No new unseen chats",
+          data: [],
+        });
+      }
+    };
+
+    await pollForNewChats();
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports.getChatById = async (req, res, next) => {
   try {
     const chatId = req.params.id;
@@ -347,6 +432,43 @@ module.exports.getUnseenCount = async (req, res, next) => {
       success: true,
       data: { count },
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports.getNewUnseenCount = async (req, res, next) => {
+  const pollInterval = 5000;
+  const maxPollAttempts = 10;
+  let attempts = 0;
+
+  try {
+    const pollForNewUnseenCount = async () => {
+      const sqlUnseenCount = `
+      SELECT COUNT(DISTINCT chat_id) AS count
+      FROM chat_message
+      WHERE seen_by_admin = 0
+    `;
+
+      const result = await queryPromise(sqlUnseenCount);
+      const count = result[0].count;
+      if (count > 0) {
+        res.status(200).json({
+          message: "Unseen chat count fetched successfully",
+          success: true,
+          data: { count },
+        });
+      } else if (attempts < maxPollAttempts) {
+        attempts++;
+        setTimeout(pollForNewUnseenCount, pollInterval);
+      } else {
+        res
+          .status(204)
+          .json({ success: true, message: "No new messages", data: [] });
+      }
+    };
+
+    await pollForNewUnseenCount();
   } catch (error) {
     next(error);
   }

@@ -12,10 +12,16 @@ router.post(
   chatController.replyToChat
 );
 router.get("/api/chat", adminValidateToken, chatController.getAllChats);
+router.get("/api/new-chat", adminValidateToken, chatController.getNewAllChats);
 router.get(
   "/api/chat/count/unseen",
   adminValidateToken,
   chatController.getUnseenCount
+);
+router.get(
+  "/api/chat/count/new-unseen",
+  adminValidateToken,
+  chatController.getNewUnseenCount
 );
 router.get("/api/chat/:id", adminValidateToken, chatController.getChatDetails);
 router.get(
