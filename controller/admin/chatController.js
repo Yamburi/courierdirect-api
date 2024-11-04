@@ -53,6 +53,8 @@ module.exports.getAllChats = async (req, res, next) => {
     const totalChats = await queryPromise(countQuery);
     const pageCount = Math.ceil(totalChats[0].total / limit);
 
+    await queryPromise(`UPDATE chat_message SET fetch_by_admin = 1`);
+
     res.status(200).json({
       message: "Data Fetched Successfully",
       success: true,
@@ -77,14 +79,16 @@ module.exports.getNewAllChats = async (req, res, next) => {
       const offset = (page - 1) * limit;
 
       let sqlSelect = `
-        SELECT 
-          chat.*, 
-          COUNT(CASE WHEN chat_message.seen_by_admin = 0 THEN 1 END) AS unseen_count, 
-          (SELECT message FROM chat_message WHERE chat_id = chat.id ORDER BY created_at DESC LIMIT 1) AS last_message,
-          (SELECT created_at FROM chat_message WHERE chat_id = chat.id ORDER BY created_at DESC LIMIT 1) AS last_message_date
-        FROM chat
-        LEFT JOIN chat_message ON chat_message.chat_id = chat.id
-      `;
+      SELECT 
+        chat.*, 
+        COUNT(CASE WHEN chat_message.seen_by_admin = 0 THEN 1 END) AS unseen_count, 
+        (SELECT message FROM chat_message WHERE chat_id = chat.id ORDER BY created_at DESC LIMIT 1) AS last_message,
+        (SELECT created_at FROM chat_message WHERE chat_id = chat.id ORDER BY created_at DESC LIMIT 1) AS last_message_date
+      FROM chat
+      LEFT JOIN chat_message ON chat_message.chat_id = chat.id 
+        AND chat_message.seen_by_admin = 0
+        AND chat_message.fetch_by_admin = 0
+    `;
 
       const conditions = [];
       let whereClause = "";
@@ -115,7 +119,17 @@ module.exports.getNewAllChats = async (req, res, next) => {
 
       const unseenChats = data.filter((chat) => chat.unseen_count > 0);
 
+      await queryPromise(`UPDATE chat_message SET fetch_by_admin = 1`);
+
       if (unseenChats.length > 0) {
+        const unseenChatIds = unseenChats.map((chat) => chat.id);
+        const updateQuery = `
+        UPDATE chat_message 
+        SET fetch_by_admin = 1 
+        WHERE chat_id IN (?)
+      `;
+
+        await queryPromise(updateQuery, [unseenChatIds]);
         const countQuery = `
           SELECT COUNT(*) AS total
           FROM chat
@@ -147,6 +161,7 @@ module.exports.getNewAllChats = async (req, res, next) => {
 
     await pollForNewChats();
   } catch (error) {
+    console.log(error);
     next(error);
   }
 };
@@ -197,7 +212,7 @@ module.exports.getChatDetails = async (req, res, next) => {
 
     await queryPromise(
       `
-      UPDATE chat_message SET seen_by_admin = 1 WHERE chat_id = ? AND seen_by_admin = 0
+      UPDATE chat_message SET seen_by_admin = 1, fetch_by_admin = 1 WHERE chat_id = ? AND seen_by_admin = 0
     `,
       [chatId]
     );
@@ -237,13 +252,13 @@ module.exports.getNewMessages = async (req, res, next) => {
     const pollForNewMessages = async () => {
       const sqlSelectNewMessages = `
         SELECT * FROM chat_message
-        WHERE chat_id = ? AND seen_by_admin = 0
+        WHERE chat_id = ? AND seen_by_admin = 0 AND fetch_by_admin=0
         ORDER BY created_at DESC
       `;
       const newMessages = await queryPromise(sqlSelectNewMessages, [chatId]);
       await queryPromise(
         `
-        UPDATE chat_message SET seen_by_admin = 1 WHERE chat_id = ? AND seen_by_admin = 0
+        UPDATE chat_message SET seen_by_admin = 1, fetch_by_admin = 1 WHERE chat_id = ? AND seen_by_admin = 0
       `,
         [chatId]
       );
@@ -294,8 +309,8 @@ module.exports.replyToChat = async (req, res, next) => {
     const messageId = uuidv4();
 
     const sqlInsertMessage = `
-      INSERT INTO chat_message (id, chat_id, admin_id,  message, seen_by_user, seen_by_admin)
-      VALUES (?, ?, ?, ?,0,1)
+      INSERT INTO chat_message (id, chat_id, admin_id,  message, seen_by_user, seen_by_admin, fetch_by_user, fetch_by_admin)
+      VALUES (?, ?, ?, ?,0,1,0,1)
     `;
     await queryPromise(sqlInsertMessage, [
       messageId,
@@ -447,7 +462,7 @@ module.exports.getNewUnseenCount = async (req, res, next) => {
       const sqlUnseenCount = `
       SELECT COUNT(DISTINCT chat_id) AS count
       FROM chat_message
-      WHERE seen_by_admin = 0
+      WHERE seen_by_admin = 0 AND fetch_by_admin=0
     `;
 
       const result = await queryPromise(sqlUnseenCount);

@@ -43,8 +43,8 @@ module.exports.createChat = async (req, res, next) => {
       "Thank you for reaching out. We will get back to you shortly.";
 
     const sqlInsertAdminReply = `
-      INSERT INTO chat_message (id, chat_id, admin_id, message, seen_by_user, seen_by_admin)
-      VALUES (?, ?, ?, ?, 1, 0)
+      INSERT INTO chat_message (id, chat_id, admin_id, message, seen_by_user, seen_by_admin,fetch_by_user, fetch_by_admin)
+      VALUES (?, ?, ?, ?, 1, 0,1,0)
     `;
     await queryPromise(sqlInsertAdminReply, [
       adminReplyId,
@@ -106,8 +106,8 @@ module.exports.replyToChat = async (req, res, next) => {
     }
     const messageId = uuidv4();
     const sqlInsertMessage = `
-      INSERT INTO chat_message (id,chat_id, user_id,  message, seen_by_user, seen_by_admin)
-      VALUES (?, ?, ?, ?,1,0)
+      INSERT INTO chat_message (id,chat_id, user_id,  message, seen_by_user, seen_by_admin,fetch_by_user, fetch_by_admin)
+      VALUES (?, ?, ?, ?,1,0,1,0)
     `;
     await queryPromise(sqlInsertMessage, [
       messageId,
@@ -199,7 +199,7 @@ module.exports.getChatDetails = async (req, res, next) => {
 
     await queryPromise(
       `
-      UPDATE chat_message SET seen_by_user = 1 WHERE chat_id = ? AND seen_by_user = 0
+      UPDATE chat_message SET seen_by_user = 1, fetch_by_user = 1 WHERE chat_id = ? AND seen_by_user = 0
     `,
       [chatId]
     );
@@ -251,13 +251,13 @@ module.exports.getNewMessages = async (req, res, next) => {
     const pollForNewMessages = async () => {
       const sqlSelectNewMessages = `
         SELECT * FROM chat_message
-        WHERE chat_id = ? AND seen_by_user = 0
+        WHERE chat_id = ? AND seen_by_user = 0 AND fetch_by_user=0
         ORDER BY created_at DESC
       `;
       const newMessages = await queryPromise(sqlSelectNewMessages, [chatId]);
       await queryPromise(
         `
-        UPDATE chat_message SET seen_by_user = 1 WHERE chat_id = ? AND seen_by_user = 0
+        UPDATE chat_message SET seen_by_user = 1,fetch_by_user = 1 WHERE chat_id = ? AND seen_by_user = 0
       `,
         [chatId]
       );
@@ -339,10 +339,16 @@ module.exports.getNewUnseenCount = async (req, res, next) => {
       let attempts = 0;
 
       const pollForNewUnseenCount = async () => {
-        const sqlSelectMessages = `SELECT COUNT(*) AS unseen_count FROM chat_message WHERE chat_id = ? AND seen_by_user = 0`;
+        const sqlSelectMessages = `SELECT COUNT(*) AS unseen_count FROM chat_message WHERE chat_id = ? AND seen_by_user = 0 AND fetch_by_user=0`;
         const data = await queryPromise(sqlSelectMessages, [chatId]);
 
         if (data[0].unseen_count > 0) {
+          await queryPromise(
+            `
+        UPDATE chat_message SET fetch_by_user = 1 WHERE chat_id = ? AND seen_by_user = 0
+      `,
+            [chatId]
+          );
           res.status(200).json({
             message: "Data Fetched Successfully",
             success: true,
