@@ -252,7 +252,7 @@ module.exports.getNewMessages = async (req, res, next) => {
     const pollForNewMessages = async () => {
       const sqlSelectNewMessages = `
         SELECT * FROM chat_message
-        WHERE chat_id = ? AND seen_by_admin = 0 AND fetch_by_admin=0
+        WHERE chat_id = ? AND seen_by_admin = 0 
         ORDER BY created_at DESC
       `;
       const newMessages = await queryPromise(sqlSelectNewMessages, [chatId]);

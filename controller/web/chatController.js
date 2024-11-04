@@ -26,8 +26,8 @@ module.exports.createChat = async (req, res, next) => {
     // Insert user's initial message
     const messageId = uuidv4();
     const sqlInsertMessage = `
-      INSERT INTO chat_message (id, chat_id, user_id, message, seen_by_user, seen_by_admin)
-      VALUES (?, ?, ?, ?, 1, 0)
+      INSERT INTO chat_message (id, chat_id, user_id, message, seen_by_user, seen_by_admin,fetch_by_user, fetch_by_admin)
+      VALUES (?, ?, ?, ?, 1, 0,1,0)
     `;
     await queryPromise(sqlInsertMessage, [
       messageId,
@@ -251,7 +251,7 @@ module.exports.getNewMessages = async (req, res, next) => {
     const pollForNewMessages = async () => {
       const sqlSelectNewMessages = `
         SELECT * FROM chat_message
-        WHERE chat_id = ? AND seen_by_user = 0 AND fetch_by_user=0
+        WHERE chat_id = ? AND seen_by_user = 0
         ORDER BY created_at DESC
       `;
       const newMessages = await queryPromise(sqlSelectNewMessages, [chatId]);
