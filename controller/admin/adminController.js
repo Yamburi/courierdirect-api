@@ -25,7 +25,7 @@ module.exports.getAdmin = async (req, res, next) => {
     }
 
     const { role, startDate, endDate } = req.query;
-    let whereClause = "WHERE email != 'yamburiit@gmail.com'";
+    let whereClause = "WHERE email != 'courierdirect@gmail.com'";
     if (role) {
       whereClause += ` AND role = '${role}'`;
     }
@@ -68,12 +68,13 @@ module.exports.postAdmin = async (req, res, next) => {
 
     const hashedPassword = await bcrypt.hash(validatedBody.password, 10);
     const sqlInsert =
-      "INSERT INTO admin (id,name,phone, email, role, password) VALUES (?, ?, ?, ?,?,?)";
+      "INSERT INTO admin (id,name,phone, email,address, role, password) VALUES (?, ?, ?, ?,?,?,?)";
     await queryPromise(sqlInsert, [
       id,
       validatedBody.name,
       validatedBody.phone,
       validatedBody.email,
+      validatedBody.address,
       validatedBody.role,
       hashedPassword,
     ]);
@@ -162,12 +163,14 @@ module.exports.editAdmin = async (req, res, next) => {
     if (existingData.length === 0) throw new NotFoundError("Data Not Found");
 
     const sqlUpdate =
-      "UPDATE admin SET name=?,phone=?, email = ?, role = ? WHERE id = ?";
+      "UPDATE admin SET name=?,phone=?, email = ?, role = ?,address=? WHERE id = ?";
     await queryPromise(sqlUpdate, [
       validatedBody.name,
       validatedBody.phone,
       validatedBody.email,
       validatedBody.role,
+      validatedBody.address,
+
       id,
     ]);
 
