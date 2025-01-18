@@ -3,7 +3,11 @@ const jwt = require("jsonwebtoken");
 
 const { queryPromise } = require("../../helper/query");
 const { postLoginSchema } = require("../../schema/loginSchema");
-const { AuthorizationError, NotFoundError } = require("../../helper/errors");
+const {
+  AuthorizationError,
+  NotFoundError,
+  BadRequestError,
+} = require("../../helper/errors");
 
 module.exports.postLogin = async (req, res, next) => {
   try {

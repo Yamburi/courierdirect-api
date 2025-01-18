@@ -28,6 +28,7 @@ const routes = [
   require("./routes/admin/whyUsRoute"),
   require("./routes/web/whyUsRoute"),
   require("./routes/admin/testimonialRoute"),
+  require("./routes/admin/deliveryRoute"),
   require("./routes/web/testimonialRoute"),
   ,
   require("./routes/admin/serviceRoute"),

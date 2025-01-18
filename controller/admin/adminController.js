@@ -170,7 +170,6 @@ module.exports.editAdmin = async (req, res, next) => {
       validatedBody.email,
       validatedBody.role,
       validatedBody.address,
-
       id,
     ]);
 
