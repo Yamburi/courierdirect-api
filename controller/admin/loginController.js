@@ -28,7 +28,7 @@ module.exports.postLogin = async (req, res, next) => {
     );
 
     if (!passwordMatch) {
-      return next(new BadRequestError("Password is incorrect"));
+      return next(new BadRequestError("Incorrect Password"));
     }
 
     const accessToken = jwt.sign(
@@ -47,6 +47,7 @@ module.exports.postLogin = async (req, res, next) => {
       data: {
         id: admin.id,
         email: admin.email,
+        name: admin.name,
         role: admin.role,
         accessToken: accessToken,
         isLoggedIn: true,
