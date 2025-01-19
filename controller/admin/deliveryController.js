@@ -17,15 +17,25 @@ const omitPassword = (admin) => {
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 module.exports.getDelivery = async (req, res, next) => {
   try {
-    let { startDate, endDate, search, page = 1, pageSize = 10 } = req.query;
+    let {
+      startDate,
+      endDate,
+      status,
+      search,
+      page = 1,
+      pageSize = 10,
+    } = req.query;
     const offset = (page - 1) * pageSize;
-    const sqlSelect = `SELECT * FROM deliveries`;
+    let sqlSelect = `SELECT * FROM deliveries`;
     const conditions = [];
     let whereClause = "";
     if (startDate !== undefined && endDate !== undefined) {
       conditions.push(`created_at BETWEEN '${startDate}' AND '${endDate}'`);
     } else if (startDate !== undefined) {
       conditions.push(`created_at >= '${startDate}'`);
+    }
+    if (status !== undefined) {
+      conditions.push(`status = '${status}'`);
     }
     if (search !== undefined) {
       conditions.push(`quote_id LIKE '%${search}%'`);
@@ -90,6 +100,7 @@ module.exports.getDelivery = async (req, res, next) => {
       data: { items: formattedData, pageCount: pageCount },
     });
   } catch (error) {
+    console.log(error);
     next(error);
   }
 };
@@ -438,11 +449,14 @@ module.exports.editDelivery = async (req, res, next) => {
 
     if (currentStatus === "Out For Delivery" && status === "Product Scanned") {
       await deleteHistory("Out For Delivery");
+      await updateDeliveryStatus(existingData[0].quote_id, "Product Scanned");
     } else if (currentStatus === "Delivered" && status === "Out For Delivery") {
       await deleteHistory("Delivered");
+      await updateDeliveryStatus(existingData[0].quote_id, "Out For Delivery");
     } else if (currentStatus === "Delivered" && status === "Product Scanned") {
       await deleteHistory("Out For Delivery");
       await deleteHistory("Delivered");
+      await updateDeliveryStatus(existingData[0].quote_id, "Product Scanned");
     }
 
     const data = await queryPromise(
