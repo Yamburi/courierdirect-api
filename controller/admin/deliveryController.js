@@ -445,9 +445,52 @@ module.exports.editDelivery = async (req, res, next) => {
       await deleteHistory("Delivered");
     }
 
+    const data = await queryPromise(
+      `
+        SELECT * FROM deliveries
+        WHERE id = ?
+      `,
+      [id]
+    );
+    const formattedData = await Promise.all(
+      data?.map(async (plan) => {
+        const history = await queryPromise(
+          `
+            SELECT * FROM delivery_history
+            WHERE delivery_id = ?
+            ORDER BY created_at ASC
+          `,
+          [plan.id]
+        );
+
+        const updatedHistory = await Promise.all(
+          history?.map(async (his) => {
+            const admin = await queryPromise(
+              `
+                SELECT * FROM admin
+                WHERE id = ?
+              `,
+              [his.admin_id]
+            );
+
+            return {
+              ...his,
+              admin: omitPassword(admin[0]),
+            };
+          })
+        );
+
+        return {
+          ...plan,
+          history: updatedHistory,
+        };
+      })
+    );
+
     res.status(200).json({
       message: "Delivery status updated successfully",
       success: true,
+      data: formattedData[0],
     });
   } catch (error) {
     next(error);
