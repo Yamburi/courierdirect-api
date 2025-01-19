@@ -1,6 +1,7 @@
 const { BadRequestError, NotFoundError } = require("../../helper/errors");
 const { postTrackSchema } = require("../../schema/trackSchema");
 const axios = require("axios");
+const { queryPromise } = require("../../helper/query");
 module.exports.postTrack = async (req, res, next) => {
   try {
     const validatedBody = postTrackSchema.parse(req.body);
