@@ -13,6 +13,7 @@ module.exports.getTotalCounts = async (req, res, next) => {
       sliderResult,
       testimonialResult,
       faqResult,
+      deliveryResult,
     ] = await Promise.all([
       executeQuery("SELECT COUNT(*) AS serviceCount FROM service"),
       executeQuery("SELECT COUNT(*) AS serviceDetailCount FROM service_detail"),
@@ -22,6 +23,7 @@ module.exports.getTotalCounts = async (req, res, next) => {
 
       executeQuery("SELECT COUNT(*) AS testimonialCount FROM testimonial"),
       executeQuery("SELECT COUNT(*) AS faqCount FROM faq"),
+      executeQuery("SELECT COUNT(*) AS deliveryCount FROM deliveries"),
     ]);
 
     const serviceCount = serviceResult[0]?.serviceCount;
@@ -32,6 +34,7 @@ module.exports.getTotalCounts = async (req, res, next) => {
 
     const testimonialCount = testimonialResult[0]?.testimonialCount;
     const faqCount = faqResult[0]?.faqCount;
+    const deliveryCount = deliveryResult[0]?.deliveryCount;
 
     return res.status(200).json({
       success: true,
@@ -44,6 +47,7 @@ module.exports.getTotalCounts = async (req, res, next) => {
         sliderCount,
         testimonialCount,
         faqCount,
+        deliveryCount,
       },
     });
   } catch (error) {

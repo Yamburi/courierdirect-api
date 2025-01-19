@@ -161,7 +161,6 @@ module.exports.getNewAllChats = async (req, res, next) => {
 
     await pollForNewChats();
   } catch (error) {
-    console.log(error);
     next(error);
   }
 };

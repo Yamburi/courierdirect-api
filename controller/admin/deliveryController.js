@@ -5,6 +5,7 @@ const {
   NotFoundError,
   AuthorizationError,
   ConflictError,
+  BadRequestError,
 } = require("../../helper/errors");
 const {
   postDeliverySchema,
@@ -206,10 +207,7 @@ module.exports.getDeliveryHistoryByQuoteId = async (req, res, next) => {
     const { quoteId } = req.params;
 
     if (!quoteId) {
-      return res.status(400).json({
-        message: "Quote ID is required.",
-        success: false,
-      });
+      throw new BadRequestError("Quote Id is required.");
     }
 
     const delivery = await queryPromise(
@@ -221,10 +219,7 @@ module.exports.getDeliveryHistoryByQuoteId = async (req, res, next) => {
     );
 
     if (delivery.length === 0) {
-      return res.status(404).json({
-        message: "No delivery found for the given Quote ID.",
-        success: false,
-      });
+      throw new NotFoundError("Delivery Not Found");
     }
 
     const deliveryId = delivery[0].id;
@@ -333,10 +328,7 @@ module.exports.postDelivery = async (req, res, next) => {
       }
     } else {
       if (adminRole !== "Scanner") {
-        return res.status(403).json({
-          message: "Quote Id Not Found",
-          success: false,
-        });
+        throw new NotFoundError("Quote Id Not Found");
       }
 
       const id = uuidv4();

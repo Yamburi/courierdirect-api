@@ -15,6 +15,7 @@ router.get(
 );
 router.get(
   "/api/delivery/track/:quoteId",
+  adminValidateToken,
   deliveryController.getDeliveryHistoryByQuoteId
 );
 
