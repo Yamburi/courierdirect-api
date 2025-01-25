@@ -293,43 +293,56 @@ module.exports.postDelivery = async (req, res, next) => {
       [quote_id]
     );
 
-    if (existingDelivery.length <= 0) {
-      throw new NotFoundError("Quote Id Not Found");
+    if (existingDelivery.length > 0 && adminRole === "Scanner") {
+      throw new ConflictError("Quote Id Already Exists");
     }
 
-    const deliveryId = existingDelivery[0].id;
-    const currentStatus = existingDelivery[0].status;
+    if (existingDelivery.length > 0) {
+      const deliveryId = existingDelivery[0].id;
+      const currentStatus = existingDelivery[0].status;
 
-    if (adminRole === "Scanner") {
-      if (currentStatus === "Delivery Created") {
-        await updateDeliveryHistory(deliveryId, "Product Scanned", adminId);
+      if (adminRole === "Employee") {
+        if (currentStatus === "Product Scanned") {
+          await updateDeliveryHistory(deliveryId, "Out For Delivery", adminId);
+          await updateDeliveryStatus(quote_id, "Out For Delivery");
+        } else {
+          return res.status(400).json({
+            message:
+              "Cannot update to 'Out For Delivery'. Current status is not 'Product Scanned'.",
+            success: false,
+          });
+        }
+      }
+
+      if (adminRole === "Driver") {
+        if (currentStatus === "Out For Delivery") {
+          await updateDeliveryHistory(deliveryId, "Delivered", adminId);
+          await updateDeliveryStatus(quote_id, "Delivered");
+        } else {
+          return res.status(400).json({
+            message:
+              "Cannot update to 'Delivered'. Current status is not 'Out For Delivery'.",
+            success: false,
+          });
+        }
+      }
+    } else {
+      if (adminRole !== "Scanner") {
+        throw new NotFoundError("Quote Id Not Found");
+      }
+
+      const id = uuidv4();
+      if (adminRole === "Scanner") {
+        await queryPromise(
+          `
+            INSERT INTO deliveries (id,quote_id) VALUES (?, ?)
+          `,
+          [id, quote_id]
+        );
+        await updateDeliveryHistory(id, "Delivery Created", adminId);
+        await delay(1000);
+        await updateDeliveryHistory(id, "Product Scanned", adminId);
         await updateDeliveryStatus(quote_id, "Product Scanned");
-      } else {
-        throw new BadRequestError(
-          "Cannot update to 'Product Scanned'. Current status is not 'Delivery Created'."
-        );
-      }
-    }
-
-    if (adminRole === "Employee") {
-      if (currentStatus === "Product Scanned") {
-        await updateDeliveryHistory(deliveryId, "Out For Delivery", adminId);
-        await updateDeliveryStatus(quote_id, "Out For Delivery");
-      } else {
-        throw new BadRequestError(
-          "Cannot update to 'Out For Delivery'. Current status is not 'Product Scanned'."
-        );
-      }
-    }
-
-    if (adminRole === "Driver") {
-      if (currentStatus === "Out For Delivery") {
-        await updateDeliveryHistory(deliveryId, "Delivered", adminId);
-        await updateDeliveryStatus(quote_id, "Delivered");
-      } else {
-        throw new BadRequestError(
-          "Cannot update to 'Delivered'. Current status is not 'Out For Delivery'."
-        );
       }
     }
 

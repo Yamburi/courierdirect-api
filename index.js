@@ -38,6 +38,7 @@ const routes = [
   require("./routes/admin/chatRoute"),
   require("./routes/web/chatRoute"),
   require("./routes/web/trackRoute"),
+  require("./routes/web/deliveryRoute"),
 
   require("./routes/admin/changePasswordRoute"),
   require("./routes/admin/dashboardRoute"),
