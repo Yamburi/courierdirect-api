@@ -6,7 +6,7 @@ const {
   postTestimonialSchema,
   editTestimonialSchema,
 } = require("../../schema/testimonialSchema");
-const fs = require("fs").promises;
+const { deleteFile } = require("../../helper/unsync");
 module.exports.getTestimonial = async (req, res, next) => {
   try {
     // if (req.admin.role !== "Admin") {
@@ -64,11 +64,7 @@ module.exports.postTestimonial = async (req, res, next) => {
     });
   } catch (error) {
     if (uploadedFile) {
-      try {
-        await fs.unlink(`./uploads/testimonial/${uploadedFile}`);
-      } catch (err) {
-        console.error(`Failed to delete file: ${filePath}`, err);
-      }
+      deleteFile(`./uploads/testimonial/${uploadedFile}`);
     }
     next(error);
   }
@@ -116,14 +112,7 @@ module.exports.editTestimonial = async (req, res, next) => {
     uploadedFile = file;
 
     if (file && existingData[0]?.image) {
-      try {
-        await fs.unlink(`./uploads/testimonial/${existingData[0].image}`);
-      } catch (err) {
-        console.error(
-          `Failed to delete old image: ${existingData[0].image}`,
-          err
-        );
-      }
+      deleteFile(`./uploads/testimonial/${existingData[0].image}`);
     }
 
     const sqlUpdate =
@@ -148,11 +137,7 @@ module.exports.editTestimonial = async (req, res, next) => {
     });
   } catch (error) {
     if (uploadedFile) {
-      try {
-        await fs.unlink(`./uploads/testimonial/${uploadedFile}`);
-      } catch (err) {
-        console.error(`Failed to delete file: ${uploadedFile}`, err);
-      }
+      deleteFile(`./uploads/testimonial/${uploadedFile}`);
     }
     next(error);
   }
@@ -171,14 +156,7 @@ module.exports.deleteTestimonial = async (req, res, next) => {
     );
     if (existingData.length === 0) throw new NotFoundError("Data Not Found");
     if (existingData[0]?.image) {
-      try {
-        await fs.unlink(`./uploads/testimonial/${existingData[0].image}`);
-      } catch (err) {
-        console.error(
-          `Failed to delete old image: ${existingData[0].image}`,
-          err
-        );
-      }
+      deleteFile(`./uploads/testimonial/${existingData[0].image}`);
     }
 
     await queryPromise("DELETE FROM testimonial WHERE id = ?", [id]);

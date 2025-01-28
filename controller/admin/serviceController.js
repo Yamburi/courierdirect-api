@@ -6,7 +6,7 @@ const {
   postServiceSchema,
   editServiceSchema,
 } = require("../../schema/serviceSchema");
-const fs = require("fs").promises;
+const { deleteFile } = require("../../helper/unsync");
 
 module.exports.getService = async (req, res, next) => {
   try {
@@ -65,7 +65,7 @@ module.exports.postService = async (req, res, next) => {
   } catch (error) {
     if (uploadedFile) {
       try {
-        await fs.unlink(`./uploads/service/${uploadedFile}`);
+        deleteFile(`./uploads/service/${uploadedFile}`);
       } catch (err) {
         console.error(`Failed to delete file: ${filePath}`, err);
       }
@@ -96,14 +96,7 @@ module.exports.editService = async (req, res, next) => {
     uploadedFile = file;
 
     if (file && existingData[0]?.image) {
-      try {
-        await fs.unlink(`./uploads/service/${existingData[0].image}`);
-      } catch (err) {
-        console.error(
-          `Failed to delete old image: ${existingData[0].image}`,
-          err
-        );
-      }
+      deleteFile(`./uploads/service/${existingData[0].image}`);
     }
 
     const sqlUpdate =
@@ -126,11 +119,7 @@ module.exports.editService = async (req, res, next) => {
     });
   } catch (error) {
     if (uploadedFile) {
-      try {
-        await fs.unlink(`./uploads/service/${uploadedFile}`);
-      } catch (err) {
-        console.error(`Failed to delete file: ${uploadedFile}`, err);
-      }
+      deleteFile(`./uploads/service/${uploadedFile}`);
     }
     next(error);
   }
@@ -149,14 +138,7 @@ module.exports.deleteService = async (req, res, next) => {
     );
     if (existingData.length === 0) throw new NotFoundError("Data Not Found");
     if (existingData[0]?.image) {
-      try {
-        await fs.unlink(`./uploads/service/${existingData[0].image}`);
-      } catch (err) {
-        console.error(
-          `Failed to delete old image: ${existingData[0].image}`,
-          err
-        );
-      }
+      deleteFile(`./uploads/service/${existingData[0].image}`);
     }
 
     await queryPromise("DELETE FROM service WHERE id = ?", [id]);

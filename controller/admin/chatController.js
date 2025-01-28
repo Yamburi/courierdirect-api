@@ -2,7 +2,7 @@ const { queryPromise } = require("../../helper/query");
 const { BadRequestError } = require("../../helper/errors");
 const { replyChatSchema } = require("../../schema/chatSchema");
 const { v4: uuidv4 } = require("uuid");
-const fs = require("fs").promises;
+const { deleteFile } = require("../../helper/unsync");
 module.exports.getAllChats = async (req, res, next) => {
   try {
     let { page = 1, limit = 100000, startDate, endDate } = req.query;
@@ -364,11 +364,7 @@ module.exports.replyToChat = async (req, res, next) => {
   } catch (error) {
     if (uploadedFiles && uploadedFiles.length > 0) {
       for (const filePath of uploadedFiles) {
-        try {
-          await fs.unlink(`./uploads/chat/${filePath}`);
-        } catch (err) {
-          console.error(`Failed to delete file: ${filePath}`, err);
-        }
+        deleteFile(`./uploads/chat/${filePath}`);
       }
     }
     next(error);
@@ -396,11 +392,8 @@ module.exports.deleteChat = async (req, res, next) => {
       await Promise.all(
         galleryImages?.map(async (fileData) => {
           const filePath = `./uploads/chat/${fileData.image}`;
-          try {
-            await fs.unlink(filePath);
-          } catch (error) {
-            console.error("Error deleting file:", filePath, error);
-          }
+
+          deleteFile(filePath);
         })
       );
 

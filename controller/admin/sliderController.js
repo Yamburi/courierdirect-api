@@ -6,7 +6,7 @@ const {
   postSliderSchema,
   editSliderSchema,
 } = require("../../schema/sliderSchema");
-const fs = require("fs").promises;
+const { deleteFile } = require("../../helper/unsync");
 module.exports.getSlider = async (req, res, next) => {
   try {
     // if (req.admin.role !== "Admin") {
@@ -56,11 +56,7 @@ module.exports.postSlider = async (req, res, next) => {
     });
   } catch (error) {
     if (uploadedFile) {
-      try {
-        await fs.unlink(`./uploads/slider/${uploadedFile}`);
-      } catch (err) {
-        console.error(`Failed to delete file: ${filePath}`, err);
-      }
+      deleteFile(`./uploads/slider/${uploadedFile}`);
     }
     next(error);
   }
@@ -88,14 +84,7 @@ module.exports.editSlider = async (req, res, next) => {
     uploadedFile = file;
 
     if (file && existingData[0]?.image) {
-      try {
-        await fs.unlink(`./uploads/slider/${existingData[0].image}`);
-      } catch (err) {
-        console.error(
-          `Failed to delete old image: ${existingData[0].image}`,
-          err
-        );
-      }
+      deleteFile(`./uploads/slider/${existingData[0].image}`);
     }
 
     const sqlUpdate = "UPDATE slider SET  link=?, image=? WHERE id = ?";
@@ -112,11 +101,7 @@ module.exports.editSlider = async (req, res, next) => {
     });
   } catch (error) {
     if (uploadedFile) {
-      try {
-        await fs.unlink(`./uploads/slider/${uploadedFile}`);
-      } catch (err) {
-        console.error(`Failed to delete file: ${uploadedFile}`, err);
-      }
+      deleteFile(`./uploads/slider/${uploadedFile}`);
     }
     next(error);
   }
@@ -136,14 +121,7 @@ module.exports.deleteSlider = async (req, res, next) => {
     if (existingData.length === 0) throw new NotFoundError("Data Not Found");
 
     if (existingData[0]?.image) {
-      try {
-        await fs.unlink(`./uploads/slider/${existingData[0].image}`);
-      } catch (err) {
-        console.error(
-          `Failed to delete old image: ${existingData[0].image}`,
-          err
-        );
-      }
+      deleteFile(`./uploads/slider/${existingData[0].image}`);
     }
 
     await queryPromise("DELETE FROM slider WHERE id = ?", [id]);
