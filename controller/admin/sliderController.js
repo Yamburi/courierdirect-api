@@ -87,8 +87,15 @@ module.exports.editSlider = async (req, res, next) => {
     let imageToUpdate = file ? file : existingData[0].image;
     uploadedFile = file;
 
-    if (file) {
-      await fs.unlink(`./uploads/slider/${existingData[0]?.image}`);
+    if (file && existingData[0]?.image) {
+      try {
+        await fs.unlink(`./uploads/slider/${existingData[0].image}`);
+      } catch (err) {
+        console.error(
+          `Failed to delete old image: ${existingData[0].image}`,
+          err
+        );
+      }
     }
 
     const sqlUpdate = "UPDATE slider SET  link=?, image=? WHERE id = ?";
@@ -128,7 +135,17 @@ module.exports.deleteSlider = async (req, res, next) => {
     );
     if (existingData.length === 0) throw new NotFoundError("Data Not Found");
 
-    await fs.unlink(`./uploads/slider/${existingData[0]?.image}`);
+    if (existingData[0]?.image) {
+      try {
+        await fs.unlink(`./uploads/slider/${existingData[0].image}`);
+      } catch (err) {
+        console.error(
+          `Failed to delete old image: ${existingData[0].image}`,
+          err
+        );
+      }
+    }
+
     await queryPromise("DELETE FROM slider WHERE id = ?", [id]);
     res.status(200).json({
       message: "Data Deleted Successfully",

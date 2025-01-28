@@ -95,8 +95,15 @@ module.exports.editService = async (req, res, next) => {
     let imageToUpdate = file ? file : existingData[0].image;
     uploadedFile = file;
 
-    if (file) {
-      await fs.unlink(`./uploads/service/${existingData[0]?.image}`);
+    if (file && existingData[0]?.image) {
+      try {
+        await fs.unlink(`./uploads/service/${existingData[0].image}`);
+      } catch (err) {
+        console.error(
+          `Failed to delete old image: ${existingData[0].image}`,
+          err
+        );
+      }
     }
 
     const sqlUpdate =
@@ -141,8 +148,17 @@ module.exports.deleteService = async (req, res, next) => {
       [id]
     );
     if (existingData.length === 0) throw new NotFoundError("Data Not Found");
+    if (existingData[0]?.image) {
+      try {
+        await fs.unlink(`./uploads/service/${existingData[0].image}`);
+      } catch (err) {
+        console.error(
+          `Failed to delete old image: ${existingData[0].image}`,
+          err
+        );
+      }
+    }
 
-    await fs.unlink(`./uploads/service/${existingData[0]?.image}`);
     await queryPromise("DELETE FROM service WHERE id = ?", [id]);
     res.status(200).json({
       message: "Data Deleted Successfully",

@@ -90,10 +90,16 @@ module.exports.editWhyUs = async (req, res, next) => {
     let imageToUpdate = file ? file : existingData[0].image;
     uploadedFile = file;
 
-    if (file) {
-      await fs.unlink(`./uploads/why-us/${existingData[0]?.image}`);
+    if (file && existingData[0]?.image) {
+      try {
+        await fs.unlink(`./uploads/why-us/${existingData[0].image}`);
+      } catch (err) {
+        console.error(
+          `Failed to delete old image: ${existingData[0].image}`,
+          err
+        );
+      }
     }
-
     const sqlUpdate = "UPDATE why_us SET  description=?, image=? WHERE id = ?";
     await queryPromise(sqlUpdate, [
       validatedBody.description,
@@ -135,7 +141,16 @@ module.exports.deleteWhyUs = async (req, res, next) => {
     );
     if (existingData.length === 0) throw new NotFoundError("Data Not Found");
 
-    await fs.unlink(`./uploads/why-us/${existingData[0]?.image}`);
+    if (file && existingData[0]?.image) {
+      try {
+        await fs.unlink(`./uploads/why-us/${existingData[0].image}`);
+      } catch (err) {
+        console.error(
+          `Failed to delete old image: ${existingData[0].image}`,
+          err
+        );
+      }
+    }
     await queryPromise("DELETE FROM why_us WHERE id = ?", [id]);
     res.status(200).json({
       message: "Data Deleted Successfully",
