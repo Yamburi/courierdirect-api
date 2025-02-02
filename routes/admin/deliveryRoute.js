@@ -30,6 +30,11 @@ router.put(
   adminValidateToken,
   deliveryController.editDelivery
 );
+router.put(
+  "/api/delivery/cancel/:id",
+  adminValidateToken,
+  deliveryController.cancelDelivery
+);
 router.delete(
   "/api/delivery/:id",
   adminValidateToken,

@@ -515,3 +515,84 @@ module.exports.deleteDelivery = async (req, res, next) => {
     next(error);
   }
 };
+
+module.exports.cancelDelivery = async (req, res, next) => {
+  try {
+    if (req.admin.role !== "Admin") {
+      return next(new AuthorizationError("Forbidden: Only Admin can cancel."));
+    }
+
+    const id = req.params.id;
+
+    const existingData = await queryPromise(
+      "SELECT * FROM deliveries WHERE id = ?",
+      [id]
+    );
+    if (existingData.length === 0)
+      throw new NotFoundError("Delivery Not Found");
+
+    const currentStatus = existingData[0].status;
+
+    if (currentStatus !== "Delivery Created") {
+      return res.status(400).json({
+        message: `Cannot Cancel Scanned Delivery`,
+        success: false,
+      });
+    }
+    await queryPromise("DELETE FROM delivery_history WHERE delivery_id = ?", [
+      id,
+    ]);
+    await updateDeliveryHistory(id, "Cancelled", req.admin.id);
+    await updateDeliveryStatus(existingData[0]?.quote_id, "Cancelled");
+
+    const data = await queryPromise(
+      `
+        SELECT * FROM deliveries
+        WHERE id = ?
+      `,
+      [id]
+    );
+    const formattedData = await Promise.all(
+      data?.map(async (plan) => {
+        const history = await queryPromise(
+          `
+            SELECT * FROM delivery_history
+            WHERE delivery_id = ?
+            ORDER BY created_at ASC
+          `,
+          [plan.id]
+        );
+
+        const updatedHistory = await Promise.all(
+          history?.map(async (his) => {
+            const admin = await queryPromise(
+              `
+                SELECT * FROM admin
+                WHERE id = ?
+              `,
+              [his.admin_id]
+            );
+
+            return {
+              ...his,
+              admin: omitPassword(admin[0]),
+            };
+          })
+        );
+
+        return {
+          ...plan,
+          history: updatedHistory,
+        };
+      })
+    );
+
+    res.status(200).json({
+      message: "Delivery status updated successfully",
+      success: true,
+      data: formattedData[0],
+    });
+  } catch (error) {
+    next(error);
+  }
+};
