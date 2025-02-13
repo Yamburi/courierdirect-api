@@ -1,6 +1,6 @@
 const { v4: uuidv4 } = require("uuid");
 const { queryPromise } = require("../../helper/query");
-const { BadRequestError } = require("../../helper/errors");
+const { BadRequestError, NotFoundError } = require("../../helper/errors");
 const { postChatSchema, replyChatSchema } = require("../../schema/chatSchema");
 const { generateUniqueOrderId } = require("../../helper/helpers");
 const fs = require("fs").promises;
@@ -8,50 +8,70 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 module.exports.createChat = async (req, res, next) => {
   try {
     const validatedBody = postChatSchema.parse(req.body);
-    const chatId = generateUniqueOrderId();
 
-    // Insert chat details for the user
-    const sqlInsertChat = `
+    const sqlCheckEmail = `SELECT * FROM chat WHERE email = ?`;
+    const existingChat = await queryPromise(sqlCheckEmail, [
+      validatedBody.email,
+    ]);
+    let chatId;
+    if (existingChat.length > 0) {
+      chatId = existingChat[0].id;
+      const messageId = uuidv4();
+      const sqlInsertMessage = `
+        INSERT INTO chat_message (id, chat_id, user_id, message, seen_by_user, seen_by_admin,fetch_by_user, fetch_by_admin)
+        VALUES (?, ?, ?, ?, 1, 0,1,0)
+      `;
+      await queryPromise(sqlInsertMessage, [
+        messageId,
+        chatId,
+        existingChat[0].user_id,
+        validatedBody.message,
+      ]);
+    } else {
+      chatId = generateUniqueOrderId();
+      const sqlInsertChat = `
       INSERT INTO chat (id, user_id, name, phone, email)
       VALUES (?, ?, ?, ?, ?)
     `;
-    await queryPromise(sqlInsertChat, [
-      chatId,
-      validatedBody.user_id,
-      validatedBody.name,
-      validatedBody.phone,
-      validatedBody.email,
-    ]);
+      await queryPromise(sqlInsertChat, [
+        chatId,
+        validatedBody.user_id,
+        validatedBody.name,
+        validatedBody.phone,
+        validatedBody.email,
+      ]);
 
-    // Insert user's initial message
-    const messageId = uuidv4();
-    const sqlInsertMessage = `
+      const messageId = uuidv4();
+      const sqlInsertMessage = `
       INSERT INTO chat_message (id, chat_id, user_id, message, seen_by_user, seen_by_admin,fetch_by_user, fetch_by_admin)
       VALUES (?, ?, ?, ?, 1, 0,1,0)
     `;
-    await queryPromise(sqlInsertMessage, [
-      messageId,
-      chatId,
-      validatedBody.user_id,
-      validatedBody.message,
-    ]);
-    await delay(1000);
-    // Only proceed with the admin reply once the user's message has been successfully inserted
-    const admin = await queryPromise(`SELECT * FROM admin`);
-    const adminReplyId = uuidv4();
-    const adminReplyMessage =
-      "Thank you for reaching out. We will get back to you shortly.";
+      await queryPromise(sqlInsertMessage, [
+        messageId,
+        chatId,
+        validatedBody.user_id,
+        validatedBody.message,
+      ]);
+      await delay(1000);
+      // Only proceed with the admin reply once the user's message has been successfully inserted
+      const admin = await queryPromise(
+        `SELECT * FROM admin WHERE email="courierdirect@gmail.com"`
+      );
+      const adminReplyId = uuidv4();
+      const adminReplyMessage =
+        "Thank you for reaching out. We will get back to you shortly.";
 
-    const sqlInsertAdminReply = `
+      const sqlInsertAdminReply = `
       INSERT INTO chat_message (id, chat_id, admin_id, message, seen_by_user, seen_by_admin,fetch_by_user, fetch_by_admin)
       VALUES (?, ?, ?, ?, 1, 0,1,0)
     `;
-    await queryPromise(sqlInsertAdminReply, [
-      adminReplyId,
-      chatId,
-      admin[0].id,
-      adminReplyMessage,
-    ]);
+      await queryPromise(sqlInsertAdminReply, [
+        adminReplyId,
+        chatId,
+        admin[0].id,
+        adminReplyMessage,
+      ]);
+    }
 
     // Fetch all messages including the admin reply for the response
     const sqlSelectMessages = `
@@ -94,7 +114,7 @@ module.exports.replyToChat = async (req, res, next) => {
     uploadedFiles = files?.map((file) => file.filename);
 
     const chatCheck = await queryPromise(
-      "SELECT * FROM chat WHERE id = ? AND user_id = ?",
+      "SELECT * FROM chat WHERE id = ? AND email = ?",
       [chatId, userId]
     );
     if (chatCheck.length === 0) {
@@ -178,10 +198,9 @@ module.exports.getChatDetails = async (req, res, next) => {
   try {
     const userId = req.params.id;
 
-    const chatCheck = await queryPromise(
-      "SELECT * FROM chat WHERE user_id = ?",
-      [userId]
-    );
+    const chatCheck = await queryPromise("SELECT * FROM chat WHERE email = ?", [
+      userId,
+    ]);
     if (chatCheck.length === 0) {
       return res.status(200).json({
         message: "Chat Details Fetched Successfully",
@@ -232,7 +251,7 @@ module.exports.getChatDetails = async (req, res, next) => {
 module.exports.getNewMessages = async (req, res, next) => {
   const userId = req.params.id;
 
-  const chatCheck = await queryPromise("SELECT * FROM chat WHERE user_id = ?", [
+  const chatCheck = await queryPromise("SELECT * FROM chat WHERE email = ?", [
     userId,
   ]);
   if (chatCheck.length === 0) {
@@ -295,10 +314,9 @@ module.exports.getUnseenCount = async (req, res, next) => {
   try {
     const userId = req.params.id;
 
-    const chatCheck = await queryPromise(
-      "SELECT * FROM chat WHERE user_id = ?",
-      [userId]
-    );
+    const chatCheck = await queryPromise("SELECT * FROM chat WHERE email = ?", [
+      userId,
+    ]);
     if (chatCheck.length === 0) {
       return res.status(200).json({
         message: "Chat Details Fetched Successfully",
@@ -327,10 +345,9 @@ module.exports.getNewUnseenCount = async (req, res, next) => {
   const userId = req.params.id;
 
   try {
-    const chatCheck = await queryPromise(
-      "SELECT * FROM chat WHERE user_id = ?",
-      [userId]
-    );
+    const chatCheck = await queryPromise("SELECT * FROM chat WHERE email = ?", [
+      userId,
+    ]);
 
     if (chatCheck.length > 0) {
       const chatId = chatCheck[0].id;
