@@ -426,7 +426,12 @@ module.exports.editDelivery = async (req, res, next) => {
       );
     };
 
-    if (currentStatus === "Out For Delivery" && status === "Order Dispatched") {
+    if (currentStatus === "Delivery Created") {
+      await updateDeliveryStatus(existingData[0].quote_id, "Order Dispatched");
+    } else if (
+      currentStatus === "Out For Delivery" &&
+      status === "Order Dispatched"
+    ) {
       await deleteHistory("Out For Delivery");
       await updateDeliveryStatus(existingData[0].quote_id, "Order Dispatched");
     } else if (currentStatus === "Delivered" && status === "Out For Delivery") {
