@@ -113,7 +113,7 @@ module.exports.getDeliveryByRole = async (req, res, next) => {
 
     let roleCondition = "";
     if (req.admin.role === "Scanner") {
-      roleCondition = `EXISTS (SELECT 1 FROM delivery_history WHERE delivery_id = deliveries.id AND status = 'Order Dispatched')`;
+      roleCondition = `EXISTS (SELECT 1 FROM delivery_history WHERE delivery_id = deliveries.id AND status = 'Product Scanned')`;
     } else if (req.admin.role === "Employee") {
       roleCondition = `EXISTS (SELECT 1 FROM delivery_history WHERE delivery_id = deliveries.id AND status = 'Out For Delivery')`;
     } else if (req.admin.role === "Driver") {
@@ -302,22 +302,22 @@ module.exports.postDelivery = async (req, res, next) => {
 
     if (adminRole === "Scanner") {
       if (currentStatus === "Delivery Created") {
-        await updateDeliveryHistory(deliveryId, "Order Dispatched", adminId);
-        await updateDeliveryStatus(quote_id, "Order Dispatched");
+        await updateDeliveryHistory(deliveryId, "Product Scanned", adminId);
+        await updateDeliveryStatus(quote_id, "Product Scanned");
       } else {
         throw new BadRequestError(
-          "Cannot update to 'Order Dispatched'. Current status is not 'Delivery Created'."
+          "Cannot update to 'Product Scanned'. Current status is not 'Delivery Created'."
         );
       }
     }
 
     if (adminRole === "Employee") {
-      if (currentStatus === "Order Dispatched") {
+      if (currentStatus === "Product Scanned") {
         await updateDeliveryHistory(deliveryId, "Out For Delivery", adminId);
         await updateDeliveryStatus(quote_id, "Out For Delivery");
       } else {
         throw new BadRequestError(
-          "Cannot update to 'Out For Delivery'. Current status is not 'Order Dispatched'."
+          "Cannot update to 'Out For Delivery'. Current status is not 'Product Scanned'."
         );
       }
     }
@@ -406,18 +406,18 @@ module.exports.editDelivery = async (req, res, next) => {
 
     const currentStatus = existingData[0].status;
 
-    // const statusFlow = {
-    //   "Order Dispatched": [],
-    //   "Out For Delivery": ["Order Dispatched"],
-    //   Delivered: ["Order Dispatched", "Out For Delivery"],
-    // };
+    const statusFlow = {
+      "Product Scanned": [],
+      "Out For Delivery": ["Product Scanned"],
+      Delivered: ["Product Scanned", "Out For Delivery"],
+    };
 
-    // if (!statusFlow[currentStatus]?.includes(status)) {
-    //   return res.status(400).json({
-    //     message: `Invalid Delivery Status. Only Revert Allowed.`,
-    //     success: false,
-    //   });
-    // }
+    if (!statusFlow[currentStatus]?.includes(status)) {
+      return res.status(400).json({
+        message: `Invalid Delivery Status. Only Revert Allowed.`,
+        success: false,
+      });
+    }
 
     const deleteHistory = async (statusToDelete) => {
       await queryPromise(
@@ -426,16 +426,16 @@ module.exports.editDelivery = async (req, res, next) => {
       );
     };
 
-    if (currentStatus === "Out For Delivery" && status === "Order Dispatched") {
+    if (currentStatus === "Out For Delivery" && status === "Product Scanned") {
       await deleteHistory("Out For Delivery");
-      await updateDeliveryStatus(existingData[0].quote_id, "Order Dispatched");
+      await updateDeliveryStatus(existingData[0].quote_id, "Product Scanned");
     } else if (currentStatus === "Delivered" && status === "Out For Delivery") {
       await deleteHistory("Delivered");
       await updateDeliveryStatus(existingData[0].quote_id, "Out For Delivery");
-    } else if (currentStatus === "Delivered" && status === "Order Dispatched") {
+    } else if (currentStatus === "Delivered" && status === "Product Scanned") {
       await deleteHistory("Out For Delivery");
       await deleteHistory("Delivered");
-      await updateDeliveryStatus(existingData[0].quote_id, "Order Dispatched");
+      await updateDeliveryStatus(existingData[0].quote_id, "Product Scanned");
     }
 
     const data = await queryPromise(
