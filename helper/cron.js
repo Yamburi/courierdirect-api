@@ -1,117 +1,49 @@
-// const cron = require("node-cron");
-// const { queryPromise } = require("./query");
-// const sendEmail = require("./mail");
-// const { addYears } = require("./helpers");
-// const { subDays } = require("date-fns");
-// const { format } = require("express/lib/response");
+const cron = require("node-cron");
+const { queryPromise } = require("./query");
+const sendEmail = require("./mail");
 
-// cron.schedule("0 0 * * *", async () => {
-//   try {
-//     const installations = await queryPromise(`
-//         SELECT id, installation_no, hospital_name, warranty_start_date,
-//         hospital_full_warranty, hospital_service_warranty, warranty_status
-//         FROM installation
-//         WHERE warranty_status != 'Expired'
-//       `);
+cron.schedule("*/30 * * * *", async () => {
+  try {
+    const oneHourAgo = new Date();
+    oneHourAgo.setHours(oneHourAgo.getHours() - 1);
 
-//     const currentDate = new Date();
+    const users = await queryPromise(
+      `
+      SELECT DISTINCT c.email, c.name, cm.user_id
+      FROM chat_message cm
+      JOIN chat c ON cm.chat_id = c.id
+      WHERE cm.seen_by_user = 0
+      AND cm.created_at <= ?
+      AND cm.email_sent = 0
+    `,
+      [oneHourAgo]
+    );
 
-//     for (const installation of installations) {
-//       try {
-//         const {
-//           id,
-//           installation_no,
-//           hospital_name,
-//           warranty_start_date,
-//           hospital_full_warranty,
-//           hospital_service_warranty,
-//         } = installation;
+    for (const user of users) {
+      const { email, name, user_id } = user;
 
-//         const expiryDate = addYears(
-//           new Date(warranty_start_date),
-//           hospital_full_warranty + hospital_service_warranty
-//         );
+      if (email) {
+        const subject = "Unseen Message Notification";
+        const body = `
+          <p>Dear ${name || "User"},</p>
+          <p>You have unread messages in your chat.</p>
+          <p>Please log in to your chat to check your messages.</p>
+          <p>Best Regards,<br/>Courier Direct Team</p>
+        `;
 
-//         if (currentDate >= expiryDate) {
-//           await queryPromise(
-//             "UPDATE installation SET warranty_status = 'Expired' WHERE id = ?",
-//             [id]
-//           );
-//           const users = await queryPromise(
-//             `SELECT email FROM user WHERE role="Admin"`
-//           );
+        await sendEmail(email, subject, body);
 
-//           for (const user of users) {
-//             await sendEmail(
-//               user.email,
-//               `Warranty Expired for Installation: ${installation_no}`,
-//               `
-//                 <p>Dear Admin,</p>
-
-//                 <p>The warranty for the following installation has expired:</p>
-
-//                 <ul>
-//                   <li><strong>Installation Number:</strong> ${installation_no}</li>
-//                   <li><strong>Hospital Name:</strong> ${hospital_name}</li>
-//                   <li><strong>Expiry Date:</strong> ${expiryDate.toDateString()}</li>
-//                 </ul>
-
-//                 <p>Please take the necessary actions.</p>
-
-//                 <p>Best regards,<br/>Himalayan Medical Technologies Team</p>
-//                 `
-//             );
-//           }
-//         }
-//       } catch (err) {
-//         console.error(
-//           `Error processing installation ${installation.installation_no}:`,
-//           err
-//         );
-//       }
-//     }
-//   } catch (error) {
-//     console.error("Error running the warranty expiry cron job:", error);
-//   }
-// });
-
-// cron.schedule("0 0 * * *", async () => {
-//   try {
-//     const currentDate = new Date();
-//     const reminderDate = subDays(currentDate, 3);
-
-//     const preventiveMaintenances = await queryPromise(`
-//       SELECT pm.id, pm.pm_no, pm.date, i.hospital_name, i.department as installation_department, u.email, u.department as user_department
-//       FROM preventive_maintenance pm
-//       LEFT JOIN installation i ON pm.installation_id = i.id
-//       LEFT JOIN user u ON u.department = i.department
-//       WHERE pm.date = '${format(reminderDate, "yyyy-MM-dd")}'
-//       AND i.department = u.department
-//     `);
-
-//     for (const maintenance of preventiveMaintenances) {
-//       const { pm_no, date, hospital_name, email } = maintenance;
-
-//       await sendEmail(
-//         email,
-//         `Upcoming Preventive Maintenance: ${pm_no}`,
-//         `
-//           <p>Dear Team Members,</p>
-//           <p>This is a reminder that preventive maintenance is scheduled for the following installation:</p>
-//           <ul>
-//             <li><strong>Preventive Maintenance Number:</strong> ${pm_no}</li>
-//             <li><strong>Hospital Name:</strong> ${hospital_name}</li>
-//             <li><strong>Scheduled Date:</strong> ${date}</li>
-//           </ul>
-//           <p>Please be prepared.</p>
-//           <p>Best regards,<br/>Himalayan Medical Technologies Team</p>
-//         `
-//       );
-//     }
-//   } catch (error) {
-//     console.error(
-//       "Error running the preventive maintenance reminder cron job:",
-//       error
-//     );
-//   }
-// });
+        await queryPromise(
+          `UPDATE chat_message 
+           SET email_sent = 1 
+           WHERE user_id = ? 
+           AND seen_by_user = 0 
+           AND created_at <= ?`,
+          [user_id, oneHourAgo]
+        );
+      }
+    }
+  } catch (error) {
+    console.error("Error running the unseen message cron job:", error);
+  }
+});

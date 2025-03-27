@@ -49,7 +49,7 @@ routes.forEach((route) => {
 });
 
 app.use(errorHandler);
-// require("./helper/cron"),
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
+require("./helper/cron"),
+  app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+  });
