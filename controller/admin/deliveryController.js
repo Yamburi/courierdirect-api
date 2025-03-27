@@ -406,18 +406,19 @@ module.exports.editDelivery = async (req, res, next) => {
 
     const currentStatus = existingData[0].status;
 
-    // const statusFlow = {
-    //   "Order Dispatched": [],
-    //   "Out For Delivery": ["Order Dispatched"],
-    //   Delivered: ["Order Dispatched", "Out For Delivery"],
-    // };
+    const statusFlow = {
+      "Delivery Created": ["Order Dispatched"],
+      "Order Dispatched": ["Out For Delivery", "Delivery Created"],
+      "Out For Delivery": ["Delivered", "Order Dispatched"],
+      Delivered: ["Out For Delivery", "Order Dispatched"],
+    };
 
-    // if (!statusFlow[currentStatus]?.includes(status)) {
-    //   return res.status(400).json({
-    //     message: `Invalid Delivery Status. Only Revert Allowed.`,
-    //     success: false,
-    //   });
-    // }
+    if (!statusFlow[currentStatus]?.includes(status)) {
+      return res.status(400).json({
+        message: `Invalid Delivery Status Update. Current status is ${currentStatus}, cannot update to ${status}.`,
+        success: false,
+      });
+    }
 
     const deleteHistory = async (statusToDelete) => {
       await queryPromise(
@@ -426,8 +427,24 @@ module.exports.editDelivery = async (req, res, next) => {
       );
     };
 
-    if (currentStatus === "Delivery Created") {
+    // Update status logic
+    if (currentStatus === "Delivery Created" && status === "Order Dispatched") {
       await updateDeliveryStatus(existingData[0].quote_id, "Order Dispatched");
+    } else if (
+      currentStatus === "Order Dispatched" &&
+      status === "Out For Delivery"
+    ) {
+      await updateDeliveryStatus(existingData[0].quote_id, "Out For Delivery");
+    }
+    // else if (
+    //   currentStatus === "Order Dispatched" &&
+    //   status === "Delivery Created"
+    // ) {
+    //   // Revert to Delivery Created
+    //   await updateDeliveryStatus(existingData[0].quote_id, "Delivery Created");
+    // }
+    else if (currentStatus === "Out For Delivery" && status === "Delivered") {
+      await updateDeliveryStatus(existingData[0].quote_id, "Delivered");
     } else if (
       currentStatus === "Out For Delivery" &&
       status === "Order Dispatched"
@@ -443,31 +460,20 @@ module.exports.editDelivery = async (req, res, next) => {
       await updateDeliveryStatus(existingData[0].quote_id, "Order Dispatched");
     }
 
-    const data = await queryPromise(
-      `
-        SELECT * FROM deliveries
-        WHERE id = ?
-      `,
-      [id]
-    );
+    const data = await queryPromise(`SELECT * FROM deliveries WHERE id = ?`, [
+      id,
+    ]);
     const formattedData = await Promise.all(
       data?.map(async (plan) => {
         const history = await queryPromise(
-          `
-            SELECT * FROM delivery_history
-            WHERE delivery_id = ?
-            ORDER BY created_at ASC
-          `,
+          `SELECT * FROM delivery_history WHERE delivery_id = ? ORDER BY created_at ASC`,
           [plan.id]
         );
 
         const updatedHistory = await Promise.all(
           history?.map(async (his) => {
             const admin = await queryPromise(
-              `
-                SELECT * FROM admin
-                WHERE id = ?
-              `,
+              `SELECT * FROM admin WHERE id = ?`,
               [his.admin_id]
             );
 
@@ -494,7 +500,6 @@ module.exports.editDelivery = async (req, res, next) => {
     next(error);
   }
 };
-
 module.exports.deleteDelivery = async (req, res, next) => {
   try {
     const id = req.params.id;
