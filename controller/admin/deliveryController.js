@@ -395,6 +395,7 @@ module.exports.editDelivery = async (req, res, next) => {
     }
 
     const id = req.params.id;
+    const adminId = req.admin.id;
     const { status } = editDeliverySchema.parse(req.body);
 
     const existingData = await queryPromise(
@@ -429,11 +430,13 @@ module.exports.editDelivery = async (req, res, next) => {
 
     // Update status logic
     if (currentStatus === "Delivery Created" && status === "Order Dispatched") {
+      await updateDeliveryHistory(id, "Order Dispatched", adminId);
       await updateDeliveryStatus(existingData[0].quote_id, "Order Dispatched");
     } else if (
       currentStatus === "Order Dispatched" &&
       status === "Out For Delivery"
     ) {
+      await updateDeliveryHistory(id, "Out For Delivery", adminId);
       await updateDeliveryStatus(existingData[0].quote_id, "Out For Delivery");
     }
     // else if (
@@ -444,6 +447,7 @@ module.exports.editDelivery = async (req, res, next) => {
     //   await updateDeliveryStatus(existingData[0].quote_id, "Delivery Created");
     // }
     else if (currentStatus === "Out For Delivery" && status === "Delivered") {
+      await updateDeliveryHistory(id, "Delivered", adminId);
       await updateDeliveryStatus(existingData[0].quote_id, "Delivered");
     } else if (
       currentStatus === "Out For Delivery" &&
