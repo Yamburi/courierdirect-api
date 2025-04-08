@@ -1,7 +1,7 @@
 const nodemailer = require("nodemailer");
 async function sendEmail(to, subject, text) {
   const transporter = nodemailer.createTransport({
-    host: "mail.yamburi.co.za",
+    host: "mail.courierdirect.com",
     port: 465,
     secure: true,
     auth: {

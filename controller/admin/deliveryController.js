@@ -410,8 +410,8 @@ module.exports.editDelivery = async (req, res, next) => {
     const statusFlow = {
       "Delivery Created": ["Order Dispatched"],
       "Order Dispatched": ["Out For Delivery", "Delivery Created"],
-      "Out For Delivery": ["Delivered", "Order Dispatched"],
-      Delivered: ["Out For Delivery", "Order Dispatched"],
+      "Out For Delivery": ["Delivered", "Order Dispatched", "Delivery Created"],
+      Delivered: ["Out For Delivery", "Order Dispatched", "Delivery Created"],
     };
 
     if (!statusFlow[currentStatus]?.includes(status)) {
@@ -438,15 +438,13 @@ module.exports.editDelivery = async (req, res, next) => {
     ) {
       await updateDeliveryHistory(id, "Out For Delivery", adminId);
       await updateDeliveryStatus(existingData[0].quote_id, "Out For Delivery");
-    }
-    // else if (
-    //   currentStatus === "Order Dispatched" &&
-    //   status === "Delivery Created"
-    // ) {
-    //   // Revert to Delivery Created
-    //   await updateDeliveryStatus(existingData[0].quote_id, "Delivery Created");
-    // }
-    else if (currentStatus === "Out For Delivery" && status === "Delivered") {
+    } else if (
+      currentStatus === "Order Dispatched" &&
+      status === "Delivery Created"
+    ) {
+      await deleteHistory("Order Dispatched");
+      await updateDeliveryStatus(existingData[0].quote_id, "Delivery Created");
+    } else if (currentStatus === "Out For Delivery" && status === "Delivered") {
       await updateDeliveryHistory(id, "Delivered", adminId);
       await updateDeliveryStatus(existingData[0].quote_id, "Delivered");
     } else if (
