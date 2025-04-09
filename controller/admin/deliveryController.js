@@ -293,43 +293,55 @@ module.exports.postDelivery = async (req, res, next) => {
       [quote_id]
     );
 
-    if (existingDelivery.length <= 0) {
-      throw new NotFoundError("Quote Id Not Found");
-    }
+    let deliveryId;
 
-    const deliveryId = existingDelivery[0].id;
-    const currentStatus = existingDelivery[0].status;
-
-    if (adminRole === "Scanner") {
-      if (currentStatus === "Delivery Created") {
-        await updateDeliveryHistory(deliveryId, "Order Dispatched", adminId);
-        await updateDeliveryStatus(quote_id, "Order Dispatched");
-      } else {
-        throw new BadRequestError(
-          "Cannot update to 'Order Dispatched'. Current status is not 'Delivery Created'."
-        );
+    if (adminRole === "Admin") {
+      if (existingDelivery.length > 0) {
+        throw new BadRequestError("Delivery already exists for this quote");
       }
-    }
 
-    if (adminRole === "Employee") {
-      if (currentStatus === "Order Dispatched") {
-        await updateDeliveryHistory(deliveryId, "Out For Delivery", adminId);
-        await updateDeliveryStatus(quote_id, "Out For Delivery");
-      } else {
-        throw new BadRequestError(
-          "Cannot update to 'Out For Delivery'. Current status is not 'Order Dispatched'."
-        );
+      deliveryId = uuidv4();
+      await queryPromise(
+        "INSERT INTO deliveries (id,quote_id, status) VALUES (?, ?)",
+        [deliveryId, quote_id, "Delivery Created"]
+      );
+
+      await updateDeliveryHistory(deliveryId, "Delivery Created", adminId);
+    } else {
+      if (existingDelivery.length <= 0) {
+        throw new NotFoundError("Quote Id Not Found");
       }
-    }
 
-    if (adminRole === "Driver") {
-      if (currentStatus === "Out For Delivery") {
-        await updateDeliveryHistory(deliveryId, "Delivered", adminId);
-        await updateDeliveryStatus(quote_id, "Delivered");
-      } else {
-        throw new BadRequestError(
-          "Cannot update to 'Delivered'. Current status is not 'Out For Delivery'."
-        );
+      deliveryId = existingDelivery[0].id;
+      const currentStatus = existingDelivery[0].status;
+
+      if (adminRole === "Scanner") {
+        if (currentStatus === "Delivery Created") {
+          await updateDeliveryHistory(deliveryId, "Order Dispatched", adminId);
+          await updateDeliveryStatus(quote_id, "Order Dispatched");
+        } else {
+          throw new BadRequestError(
+            "Cannot update to 'Order Dispatched'. Current status is not 'Delivery Created'."
+          );
+        }
+      } else if (adminRole === "Employee") {
+        if (currentStatus === "Order Dispatched") {
+          await updateDeliveryHistory(deliveryId, "Out For Delivery", adminId);
+          await updateDeliveryStatus(quote_id, "Out For Delivery");
+        } else {
+          throw new BadRequestError(
+            "Cannot update to 'Out For Delivery'. Current status is not 'Order Dispatched'."
+          );
+        }
+      } else if (adminRole === "Driver") {
+        if (currentStatus === "Out For Delivery") {
+          await updateDeliveryHistory(deliveryId, "Delivered", adminId);
+          await updateDeliveryStatus(quote_id, "Delivered");
+        } else {
+          throw new BadRequestError(
+            "Cannot update to 'Delivered'. Current status is not 'Out For Delivery'."
+          );
+        }
       }
     }
 
@@ -342,6 +354,7 @@ module.exports.postDelivery = async (req, res, next) => {
       `,
       [quote_id]
     );
+
     const formattedData = await Promise.all(
       data?.map(async (plan) => {
         const history = await queryPromise(
@@ -376,6 +389,7 @@ module.exports.postDelivery = async (req, res, next) => {
         };
       })
     );
+
     res.status(201).json({
       message: "Delivery Created Successfully",
       success: true,
