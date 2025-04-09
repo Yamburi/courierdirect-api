@@ -302,7 +302,7 @@ module.exports.postDelivery = async (req, res, next) => {
 
       deliveryId = uuidv4();
       await queryPromise(
-        "INSERT INTO deliveries (id,quote_id, status) VALUES (?, ?)",
+        "INSERT INTO deliveries (id,quote_id, status) VALUES (?, ?,?)",
         [deliveryId, quote_id, "Delivery Created"]
       );
 
