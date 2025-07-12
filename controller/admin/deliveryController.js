@@ -271,11 +271,11 @@ const updateDeliveryHistory = async (deliveryId, status, adminId) => {
   );
 };
 
-const updateDeliveryStatus = async (quoteId, status) => {
-  await queryPromise(`UPDATE deliveries SET status = ? WHERE quote_id = ?`, [
-    status,
-    quoteId,
-  ]);
+const updateDeliveryStatus = async (quoteId, status, receiverName) => {
+  await queryPromise(
+    `UPDATE deliveries SET status = ? , receiver_name = ? WHERE quote_id = ?`,
+    [status, receiverName, quoteId]
+  );
 };
 
 module.exports.postDelivery = async (req, res, next) => {
@@ -410,7 +410,7 @@ module.exports.editDelivery = async (req, res, next) => {
 
     const id = req.params.id;
     const adminId = req.admin.id;
-    const { status } = editDeliverySchema.parse(req.body);
+    const { status, receiver_name } = editDeliverySchema.parse(req.body);
 
     const existingData = await queryPromise(
       "SELECT * FROM deliveries WHERE id = ?",
@@ -445,35 +445,63 @@ module.exports.editDelivery = async (req, res, next) => {
     // Update status logic
     if (currentStatus === "Delivery Created" && status === "Order Dispatched") {
       await updateDeliveryHistory(id, "Order Dispatched", adminId);
-      await updateDeliveryStatus(existingData[0].quote_id, "Order Dispatched");
+      await updateDeliveryStatus(
+        existingData[0].quote_id,
+        "Order Dispatched",
+        receiver_name
+      );
     } else if (
       currentStatus === "Order Dispatched" &&
       status === "Out For Delivery"
     ) {
       await updateDeliveryHistory(id, "Out For Delivery", adminId);
-      await updateDeliveryStatus(existingData[0].quote_id, "Out For Delivery");
+      await updateDeliveryStatus(
+        existingData[0].quote_id,
+        "Out For Delivery",
+        receiver_name
+      );
     } else if (
       currentStatus === "Order Dispatched" &&
       status === "Delivery Created"
     ) {
       await deleteHistory("Order Dispatched");
-      await updateDeliveryStatus(existingData[0].quote_id, "Delivery Created");
+      await updateDeliveryStatus(
+        existingData[0].quote_id,
+        "Delivery Created",
+        receiver_name
+      );
     } else if (currentStatus === "Out For Delivery" && status === "Delivered") {
       await updateDeliveryHistory(id, "Delivered", adminId);
-      await updateDeliveryStatus(existingData[0].quote_id, "Delivered");
+      await updateDeliveryStatus(
+        existingData[0].quote_id,
+        "Delivered",
+        receiver_name
+      );
     } else if (
       currentStatus === "Out For Delivery" &&
       status === "Order Dispatched"
     ) {
       await deleteHistory("Out For Delivery");
-      await updateDeliveryStatus(existingData[0].quote_id, "Order Dispatched");
+      await updateDeliveryStatus(
+        existingData[0].quote_id,
+        "Order Dispatched",
+        receiver_name
+      );
     } else if (currentStatus === "Delivered" && status === "Out For Delivery") {
       await deleteHistory("Delivered");
-      await updateDeliveryStatus(existingData[0].quote_id, "Out For Delivery");
+      await updateDeliveryStatus(
+        existingData[0].quote_id,
+        "Out For Delivery",
+        receiver_name
+      );
     } else if (currentStatus === "Delivered" && status === "Order Dispatched") {
       await deleteHistory("Out For Delivery");
       await deleteHistory("Delivered");
-      await updateDeliveryStatus(existingData[0].quote_id, "Order Dispatched");
+      await updateDeliveryStatus(
+        existingData[0].quote_id,
+        "Order Dispatched",
+        receiver_name
+      );
     }
 
     const data = await queryPromise(`SELECT * FROM deliveries WHERE id = ?`, [
@@ -569,7 +597,7 @@ module.exports.cancelDelivery = async (req, res, next) => {
       id,
     ]);
     await updateDeliveryHistory(id, "Cancelled", req.admin.id);
-    await updateDeliveryStatus(existingData[0]?.quote_id, "Cancelled");
+    await updateDeliveryStatus(existingData[0]?.quote_id, "Cancelled", null);
 
     const data = await queryPromise(
       `

@@ -6,6 +6,7 @@ const postDeliverySchema = z.object({
 
 const editDeliverySchema = z.object({
   status: z.string().nonempty("Status is required"),
+  receiver_name: z.string().optional().nullable(),
 });
 
 module.exports = { postDeliverySchema, editDeliverySchema };
