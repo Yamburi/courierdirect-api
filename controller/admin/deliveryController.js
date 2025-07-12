@@ -284,7 +284,7 @@ const updateDeliveryStatus = async (quoteId, status, receiverName) => {
 
 module.exports.postDelivery = async (req, res, next) => {
   const validatedBody = postDeliverySchema.parse(req.body);
-  const { quote_id } = validatedBody;
+  const { quote_id, receiver_name } = validatedBody;
 
   const adminRole = req.admin.role;
   const adminId = req.admin.id;
@@ -322,7 +322,11 @@ module.exports.postDelivery = async (req, res, next) => {
       if (adminRole === "Scanner") {
         if (currentStatus === "Delivery Created") {
           await updateDeliveryHistory(deliveryId, "Order Dispatched", adminId);
-          await updateDeliveryStatus(quote_id, "Order Dispatched");
+          await updateDeliveryStatus(
+            quote_id,
+            "Order Dispatched",
+            receiver_name
+          );
         } else {
           throw new BadRequestError(
             "Cannot update to 'Order Dispatched'. Current status is not 'Delivery Created'."
@@ -331,7 +335,11 @@ module.exports.postDelivery = async (req, res, next) => {
       } else if (adminRole === "Employee") {
         if (currentStatus === "Order Dispatched") {
           await updateDeliveryHistory(deliveryId, "Out For Delivery", adminId);
-          await updateDeliveryStatus(quote_id, "Out For Delivery");
+          await updateDeliveryStatus(
+            quote_id,
+            "Out For Delivery",
+            receiver_name
+          );
         } else {
           throw new BadRequestError(
             "Cannot update to 'Out For Delivery'. Current status is not 'Order Dispatched'."
@@ -340,7 +348,7 @@ module.exports.postDelivery = async (req, res, next) => {
       } else if (adminRole === "Driver") {
         if (currentStatus === "Out For Delivery") {
           await updateDeliveryHistory(deliveryId, "Delivered", adminId);
-          await updateDeliveryStatus(quote_id, "Delivered");
+          await updateDeliveryStatus(quote_id, "Delivered", receiver_name);
         } else {
           throw new BadRequestError(
             "Cannot update to 'Delivered'. Current status is not 'Out For Delivery'."
