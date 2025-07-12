@@ -39,7 +39,9 @@ module.exports.getDelivery = async (req, res, next) => {
       conditions.push(`status = '${status}'`);
     }
     if (search !== undefined) {
-      conditions.push(`quote_id LIKE '%${search}%'`);
+      conditions.push(
+        `(quote_id LIKE '%${search}%' OR receiver_name LIKE '%${search}%')`
+      );
     }
     if (conditions.length > 0) {
       whereClause = ` WHERE ${conditions.join(" AND ")}`;
@@ -127,7 +129,9 @@ module.exports.getDeliveryByRole = async (req, res, next) => {
       conditions.push(`created_at >= '${startDate}'`);
     }
     if (search !== undefined) {
-      conditions.push(`quote_id LIKE '%${search}%'`);
+      conditions.push(
+        `(quote_id LIKE '%${search}%' OR receiver_name LIKE '%${search}%')`
+      );
     }
     if (roleCondition) {
       conditions.push(roleCondition);
